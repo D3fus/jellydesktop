@@ -64,6 +64,7 @@ impl<'a> App<'a> {
       server_state: ServerState::new(servers),
       should_quit: false,
       input_mode: false,
+      input: "",
       select_window: "Server select",
       create: CreateServer::new()
     }
@@ -104,7 +105,7 @@ impl<'a> App<'a> {
       let i = self.server_state.index;
       self.server_state.draw = i;
     }else if self.select_window == "add server +" {
-      self.create.on_enter(self);
+      //self.create.on_enter(self);
     }
   }
 
