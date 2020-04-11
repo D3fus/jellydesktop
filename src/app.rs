@@ -101,7 +101,7 @@ impl<'a> App<'a> {
   }
 
   fn on_enter(&mut self) {
-    if self.select_window == "Server selcet" {
+    if self.select_window == "Server select" {
       let i = self.server_state.index;
       self.server_state.draw = i;
     }else if self.select_window == "add server +" {
