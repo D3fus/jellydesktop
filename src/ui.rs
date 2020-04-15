@@ -71,7 +71,7 @@ fn draw_server<B>(f: &mut Frame<B>, server: &mut ServerList, app: &mut App, area
   let list = server.list.clone();
   let color = app.clone().window_focused(&server.name);
   let chunks = Layout::default()
-    .constraints([Constraint::Length(10), Constraint::Length(3)].as_ref())
+    .constraints([Constraint::Length(40), Constraint::Length(3)].as_ref())
     .margin(1)
     .split(area);
   let mut block = Block::default()
