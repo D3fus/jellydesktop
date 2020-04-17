@@ -3,7 +3,7 @@ use crate::api;
 use crate::models::{user, query};
 use serde::{Deserialize, Serialize};
 use std::process::Command;
-
+use std::thread;
 
 #[derive(Debug, Clone)]
 pub struct ServerState {
@@ -114,10 +114,11 @@ impl ServerList {
         item.Id,
         self.user.clone().unwrap().AccessToken
       );
-      let t = Command::new("mpv")
-        .args(&[base])
-        .output();
-      println!("{:?}", t);
+      thread::spawn(|| {
+        Command::new("mpv")
+          .args(&[base])
+          .output();
+      });
     } else {
       let item = &self.list.clone().unwrap().Items[self.active];
       let re = api::get_item(self, item).await;
