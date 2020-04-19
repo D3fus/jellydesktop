@@ -5,8 +5,10 @@ use crate::util;
 use reqwest::Error;
 use crate::models::{user, query};
 use serde;
-use serde::{Deserialize};
 use crate::app;
+use std::time::SystemTime;
+use chrono::DateTime;
+use chrono::offset::Local;
 
 pub fn format_header(device_id: &String, token: Option<String>) -> Vec<String> {
   let mut header = format!(
@@ -66,10 +68,8 @@ pub async fn get_view(server: &mut ServerList) -> Result<(), Error> {
     .await?;
 
   if res.status() == 200 {
-    //println!("{:?}", res.text().await?);
-    let j: query::QueryResult = res.json().await?; 
-    //server.list = Some(j);
-    server.add_list(j);
+    let j: query::QueryResult = res.json().await?;
+    server.add_view(j);
   } else {
     println!("{:?}", res.text().await?);
   }
@@ -96,3 +96,26 @@ pub async fn get_item(server: &mut ServerList, item: &query::BaseItem) -> Result
   Ok(())
 }
 
+#[tokio::main]
+pub async fn has_played(server: ServerList, item: query::BaseItem) -> Result<(), Error> {
+  let time = SystemTime::now();
+  let time: DateTime<Local> = time.into();
+  let time = time.format("%Y%m%d%H%M%S");
+  let user = server.user.clone().unwrap();
+  let h = format_header(&server.device_id, Some(user.AccessToken));
+  let uri = format!(
+    "{}/Users/{}/PlayedItems/{}?DatePlayed={}",
+    server.uri,
+    &user.User.Id,
+    item.clone().Id,
+    time
+  );
+
+  let client = reqwest::Client::new();
+  let res = client.post(&uri)
+    .header(&h[0], &h[1])
+    .header("Content-Length", "0")
+    .send()
+    .await?;
+  Ok(())
+}

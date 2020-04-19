@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::thread;
 
+
 #[derive(Debug, Clone)]
 pub struct ServerState {
   pub servers: Vec<ServerList>,
@@ -20,7 +21,10 @@ impl ServerState {
       user: None,
       device_id: "".to_string(),
       list: None,
-      active: 0
+      view: None,
+      list_name: String::from(""),
+      active_view: 0,
+      active_list: 0
     });
     ServerState {
       servers: server, index: 0, draw: 0
@@ -52,7 +56,14 @@ pub struct ServerList {
   pub device_id: String,
   #[serde(skip)]
   pub list: Option<query::QueryResult>,
-  pub active: usize,
+  #[serde(skip)]
+  pub view: Option<query::QueryResult>,
+  #[serde(skip)]
+  pub list_name: String,
+  #[serde(skip)]
+  pub active_view: usize,
+  #[serde(skip)]
+  pub active_list: usize,
 }
 
 impl ServerList {
@@ -64,7 +75,10 @@ impl ServerList {
       user: Some(user),
       device_id: id,
       list: None,
-      active: 0
+      view: None,
+      list_name: String::from(""),
+      active_view: 0,
+      active_list: 0
     }
   }
 
@@ -76,57 +90,99 @@ impl ServerList {
     }
   }
 
+  pub fn add_view(&mut self, view: query::QueryResult) {
+    self.view = Some(view);
+  }
+
   pub fn add_list(&mut self, list: query::QueryResult) {
     self.list = Some(list);
   }
 
-  pub fn is_active(&mut self, name: &String) -> Color {
-    if name == &self.list.as_ref().unwrap().Items[self.active].Name {
+  pub fn is_active_view(&mut self, name: &String) -> Color {
+    if name == &self.view.as_ref().unwrap().Items[self.active_view].Name {
       Color::Blue
     } else {
       Color::White
     }
   }
 
-  pub fn on_up(&mut self) {
-    if self.active == 0 {
-      self.active = self.list.as_ref().unwrap().Items.len() -1;
+  pub fn is_active_list(&mut self, name: &String) -> Color {
+    if name == &self.list.as_ref().unwrap().Items[self.active_list].Name {
+      Color::Blue
     } else {
-      self.active -= 1;
+      Color::White
     }
   }
 
-  pub fn on_down(&mut self) {
-    if self.active == self.list.as_ref().unwrap().Items.len() -1 {
-      self.active = 0;
+  pub fn on_up_view(&mut self) {
+    if self.active_view == 0 {
+      self.active_view = self.view.as_ref().unwrap().Items.len() -1;
     } else {
-      self.active += 1;
+      self.active_view -= 1;
     }
   }
 
-  pub async fn on_enter(&mut self) {
-    let t = &self.list.clone().unwrap().Items[self.active].Type;
-    if t == "Movie" || t == "Episode" {
-      let item = &self.list.clone().unwrap().Items[self.active];
-      let base = format!(
-        "{}/Items/{}/Download?api_key={}",
-        self.uri,
-        item.Id,
-        self.user.clone().unwrap().AccessToken
-      );
-      thread::spawn(|| {
-        Command::new("mpv")
-          .args(&[base])
-          .output();
-      });
+  pub fn on_down_view(&mut self) {
+    if self.active_view == self.view.as_ref().unwrap().Items.len() -1 {
+      self.active_view = 0;
     } else {
-      let item = &self.list.clone().unwrap().Items[self.active];
+      self.active_view += 1;
+    }
+  }
+
+  pub fn on_up_list(&mut self) {
+    if self.active_list == 0 {
+      self.active_list = self.list.as_ref().unwrap().Items.len() -1;
+    } else {
+      self.active_list -= 1;
+    }
+  }
+
+  pub fn on_down_list(&mut self) {
+    if self.active_list == self.list.as_ref().unwrap().Items.len() -1 {
+      self.active_list = 0;
+    } else {
+      self.active_list += 1;
+    }
+  }
+
+  pub async fn on_enter_view(&mut self) {
+      let item = &self.view.clone().unwrap().Items[self.active_view];
       let re = api::get_item(self, item).await;
       match re {
         Ok(e) => {},
         Err(e) => {println!("{:?}", e)}
       };
-      self.active = 0;
+      self.active_list = 0;
+      self.list_name = item.Name.clone();
+  }
+
+  pub async fn on_enter_list(&mut self) {
+    let t = &self.list.clone().unwrap().Items[self.active_list].Type;
+    if t == "Movie" || t == "Episode" {
+      let item = &self.list.clone().unwrap().Items[self.active_list];
+      let base = format!(
+        "{}/Items/{}/Download?api_key={}",
+        self.uri,
+        &item.Id,
+        self.user.clone().unwrap().AccessToken
+      );
+      let server = self.clone();
+      let i: query::BaseItem = self.list.clone().unwrap().Items[self.active_list].clone();
+      thread::spawn(|| {
+        Command::new("mpv")
+          .args(&[base])
+          .output();
+        api::has_played(server, i);
+      });
+    } else {
+      let item = &self.list.clone().unwrap().Items[self.active_list];
+      let re = api::get_item(self, item).await;
+      match re {
+        Ok(e) => {},
+        Err(e) => {println!("{:?}", e)}
+      };
+      self.active_list = 0;
     }
   }
 }
@@ -188,6 +244,12 @@ impl App {
         'K' => {
           self.win_up();
         },
+        'H' => {
+          self.win_left();
+        },
+        'L' => {
+          self.win_right();
+        },
         '\n' => {
           self.on_enter().await;
         }
@@ -213,7 +275,9 @@ impl App {
         None => {}
       }
     }else if &self.select_window == &self.server_state.servers[self.server_state.draw].name {
-      self.server_state.servers[self.server_state.draw].on_enter().await;
+      self.server_state.servers[self.server_state.draw].on_enter_view().await;
+    } else if &self.select_window == &self.server_state.servers[self.server_state.draw].list_name {
+      self.server_state.servers[self.server_state.draw].on_enter_list().await;
     }
   }
 
@@ -226,6 +290,9 @@ impl App {
   }
 
   pub fn win_up(&mut self) {
+    if self.select_window != "Server select" {
+      self.select_window = String::from("Server select");
+    }
   }
 
   pub fn win_down(&mut self) {
@@ -236,17 +303,37 @@ impl App {
     } 
   }
 
+  pub fn win_left(&mut self) {
+    let server = &self.server_state.servers[self.server_state.draw];
+    if self.select_window == server.list_name {
+      self.select_window = server.name.clone();
+    }
+  }
+
+  pub fn win_right(&mut self) {
+    let server = &self.server_state.servers[self.server_state.draw];
+    if self.select_window == server.name {
+      self.select_window = server.list_name.clone();
+    }
+  }
+
   pub fn on_up(&mut self) {
-    if self.select_window == self.server_state.servers[self.server_state.draw].name {
-      self.server_state.servers[self.server_state.draw].on_up();
+    let server = &self.server_state.servers[self.server_state.draw];
+    if self.select_window == server.name {
+      self.server_state.servers[self.server_state.draw].on_up_view();
+    } else if self.select_window == server.list_name {
+      self.server_state.servers[self.server_state.draw].on_up_list();
     }
   }
 
   pub fn on_down(&mut self) {
+    let server = &self.server_state.servers[self.server_state.draw];
     if self.select_window == "add server +"{
       self.create.on_down();
     } else if self.select_window == self.server_state.servers[self.server_state.draw].name {
-      self.server_state.servers[self.server_state.draw].on_down();
+      self.server_state.servers[self.server_state.draw].on_down_view();
+    } else if self.select_window == server.list_name {
+      self.server_state.servers[self.server_state.draw].on_down_list();
     }
   }
 
@@ -359,7 +446,11 @@ impl CreateServer {
       if !self.uri.contains("https://"){
         self.uri = format!("https://{}", self.uri);
       }
-      api::login(&self, app).await;
+      let x = api::login(&self, app).await;
+      match x {
+        Ok(d) => {},
+        Err(e) => {}
+      }
       None
     } else {
       Some(!input)

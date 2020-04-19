@@ -31,68 +31,20 @@ pub struct User {
   pub PrimaryImageAspectRatio: Option<f64>
 }
 
-struct UserConfiguration {
-  AudioLanguagePreference: String,
-  PlayDefaultAudioTrack: bool,
-  SubtitleLanguagePreference: String,
-  DisplayMissingEpisodes: bool,
-  GroupedFolders: Vec<String>,
-  SubtitleMode: String,
-  DisplayCollectionsView: bool,
-  EnableLocalPassword: bool,
-  OrderedViews: Vec<String>,
-  LatestItemsExcludes: Vec<String>,
-  MyMediaExcludes: Vec<String>,
-  HidePlayedInLatest: bool,
-  RememberAudioSelections: bool,
-  RememberSubtitleSelections: bool,
-  EnableNextEpisodeAutoPlay: bool
-}
-
-struct UserPolicy {
-  IsAdministrator: bool,
-  IsHidden: bool,
-  IsHiddenRemotely: bool,
-  IsDisabled: bool,
-  MaxParentalRating: i32,
-  BlockedTags: Vec<String>,
-  EnableUserPreferenceAccess: bool,
-  AccessSchedules: Vec<AccessSchedules>,
-  BlockUnratedItems: Vec<String>,
-  EnableRemoteControlOfOtherUsers: bool,
-  EnableSharedDeviceControl: bool,
-  EnableRemoteAccess: bool,
-  EnableLiveTvManagement: bool,
-  EnableLiveTvAccess: bool,
-  EnableMediaPlayback: bool,
-  EnableAudioPlaybackTranscoding: bool,
-  EnableVideoPlaybackTranscoding: bool,
-  EnablePlaybackRemuxing: bool,
-  EnableContentDeletion: bool, 
-  EnableContentDeletionFromFolders: Vec<String>,
-  EnableContentDownloading: bool,
-  EnableSubtitleDownloading: bool,
-  EnableSubtitleManagement: bool,
-  EnableSyncTranscoding: bool,
-  EnableMediaConversion: bool,
-  EnabledDevices: Vec<String>,
-  EnableAllDevices: bool,
-  EnabledChannels: Vec<String>,
-  EnableAllChannels: bool,
-  EnabledFolders: Vec<String>,
-  EnableAllFolders: bool,
-  InvalidLoginAttemptCount: i32,
-  EnablePublicSharing: bool,
-  BlockedMediaFolders: Vec<String>,
-  BlockedChannels: Vec<String>,
-  RemoteClientBitrateLimit: i32,
-  AuthenticationProviderId: String,
-  ExcludedSubFolders: Vec<String>,
-  DisablePremiumFeatures: bool
-}
-
-struct AccessSchedules {
-  DayOfWeek: String,
-  StartHour: f64,
-  EndHour: f64
-}
+//struct UserConfiguration {
+//  AudioLanguagePreference: String,
+//  PlayDefaultAudioTrack: bool,
+//  SubtitleLanguagePreference: String,
+//  DisplayMissingEpisodes: bool,
+//  GroupedFolders: Vec<String>,
+//  SubtitleMode: String,
+//  DisplayCollectionsView: bool,
+//  EnableLocalPassword: bool,
+//  OrderedViews: Vec<String>,
+//  LatestItemsExcludes: Vec<String>,
+//  MyMediaExcludes: Vec<String>,
+//  HidePlayedInLatest: bool,
+//  RememberAudioSelections: bool,
+//  RememberSubtitleSelections: bool,
+//  EnableNextEpisodeAutoPlay: bool
+//}

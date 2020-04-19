@@ -17,7 +17,7 @@ pub fn generate_deviceId() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct serv {
   pub count: i32,
-  pub server: Vec<app::ServerList>
+  pub server: Vec<app::ServerList>,
 }
 
 pub fn exists_config() -> bool {
