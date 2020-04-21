@@ -13,7 +13,7 @@ mod ui;
 mod models;
 
 use event::{Events, Event, Config};
-use app::{App, ServerList};
+use app::{App, Player};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -28,16 +28,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
       ..Config::default()
     });
     let mut server = App::new("Server select".to_string(), vec![]);
+    let mut player = Player::new();
     if util::exists_config() {
       let serv = util::read_server_from_config();
       for s in serv.server {
         server.server_state.servers.push(s.clone());
       } 
-      //s.server.iter().map(|s| server.server_state.servers.push(s.clone()));
-      //server.server_state.servers.push(s.server);
     }
     loop {
-      terminal.draw(|mut f| ui::draw(&mut f, &mut server))?;
+      if server.clone().to_play() {
+        player.add(&server.clone().get_dawn_server());
+        server.del_to_play();
+      }
+      player.play_if_ready();
+      terminal.draw(|mut f| ui::draw(&mut f, &mut server, &mut player))?;
       match events.next()? {
         Event::Input(key) => match key {
           Key::Char(c) => {
@@ -68,6 +72,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
       if server.should_quit {
         break;
       }
+
     }
 
     Ok(())

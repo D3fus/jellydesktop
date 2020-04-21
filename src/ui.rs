@@ -1,13 +1,12 @@
-use tui::widgets::{Widget, Block, Tabs, Row, Table, Borders, Paragraph, Text};
+use tui::widgets::{Block, Gauge, Tabs, Row, Table, Borders, Paragraph, Text};
 use tui::layout::{Layout, Constraint, Direction, Rect};
-use tui::style::{Color, Style};
+use tui::style::{Color, Modifier, Style};
 use tui::backend::Backend;
 use tui::Frame;
-use crate::app::{App, ServerList, CreateServer};
+use crate::app::{App, ServerList, Player};
 use crate::util;
-use crate::models::query;
 
-pub fn draw<B: Backend>(f: &mut Frame<B>, server: &mut App) {
+pub fn draw<B: Backend>(f: &mut Frame<B>, server: &mut App, player: &mut Player) {
   let chunks = Layout::default()
     .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
     .split(f.size());
@@ -30,9 +29,21 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, server: &mut App) {
     false => {
       let draw = server.server_state.draw;
       let serv = &mut server.clone().server_state.servers[draw];
-      draw_server(f, serv, server, chunks[1])
+      draw_server(f, serv, server, chunks[1], player)
     }
   }
+}
+
+fn draw_help_page<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
+where
+  B: Backend,
+{
+  let color = app.clone().window_focused(&"help".to_string());
+  let mut block = Block::default()
+    .borders(Borders::ALL)
+    .border_style(Style::default().fg(color))
+    .title("help");
+  f.render(&mut block, area);
 }
 
 fn draw_add_server<B>(f: &mut Frame<B>, server: &mut App, area: Rect)
@@ -50,7 +61,7 @@ fn draw_add_server<B>(f: &mut Frame<B>, server: &mut App, area: Rect)
     .title("Create new Server");
   f.render(&mut block, area);
 
-  let mut create = server.create.clone();
+  let create = server.create.clone();
   let text = [
     Text::styled("Server URL: ", Style::default().fg(create.clone().high("uri"))),
     Text::raw(create.clone().uri),
@@ -65,7 +76,7 @@ fn draw_add_server<B>(f: &mut Frame<B>, server: &mut App, area: Rect)
   f.render(&mut p, chunks[0])
 }
 
-fn draw_server<B>(f: &mut Frame<B>, server: &mut ServerList, app: &mut App, area: Rect)
+fn draw_server<B>(f: &mut Frame<B>, server: &mut ServerList, app: &mut App, area: Rect, player: &mut Player)
   where
       B: Backend,
 {
@@ -125,10 +136,44 @@ fn draw_server<B>(f: &mut Frame<B>, server: &mut ServerList, app: &mut App, area
       }
       let mut t = Table::new(["name", "to watcht/watcht"].iter(), rows.into_iter())
         .block(list_block)
-        .widths(&[Constraint::Percentage(70), Constraint::Percentage(30)])
+        .widths(&[Constraint::Percentage(90), Constraint::Percentage(10)])
         .style(Style::default().fg(Color::White))
         .column_spacing(1);
-      f.render(&mut t, chunks[1])
+      if player.time_out == 0{
+        f.render(&mut t, chunks[1]);
+      } else {
+        let list_chunk = Layout::default()
+          .constraints([Constraint::Percentage(90), Constraint::Percentage(10)].as_ref())
+          .split(chunks[1]);
+        let mut cancel_block = Block::default()
+          .borders(Borders::ALL)
+          .title("Auto Play");
+        f.render(&mut cancel_block, list_chunk[1]);
+
+        let a_chunk = Layout::default()
+          .constraints([Constraint::Length(1), Constraint::Length(3)].as_ref())
+          .margin(2)
+          .split(list_chunk[1]);
+        let label = format!("{} sec", (player.time_out as f32 * 0.2).ceil());
+        let mut gauge = Gauge::default()
+          .style(
+            Style::default()
+              .fg(Color::Magenta)
+              .bg(Color::Black)
+              .modifier(Modifier::ITALIC | Modifier::BOLD),
+          )
+        .label(&label)
+        .ratio((player.time_out as f64 - 100.0) * -0.01);
+
+        f.render(&mut gauge, a_chunk[0]);
+
+        let sec = player.time_out as f32 * 0.2;
+        let u = format!("{} sec", sec.ceil().to_string());
+          let text = vec![Text::styled(u, Style::default().fg(Color::White))];
+        let mut p = Paragraph::new(text.iter()).wrap(true).block(cancel_block);
+        f.render(&mut t, list_chunk[0]);
+        //f.render(&mut p, list_chunk[1]);
+      }
     },
     None => {}
   }

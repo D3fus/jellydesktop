@@ -36,6 +36,7 @@ pub struct BaseItem {
   pub Studios: Option<String>,
   #[serde(skip_deserializing)]
   pub GenreItems: Option<String>,
+  pub IndexNumber: Option<i32>,
   pub LocalTrailerCount: Option<i32>,
   pub UserData: UserItemData,
   pub ChildCount: Option<i32>,

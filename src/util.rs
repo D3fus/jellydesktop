@@ -5,17 +5,19 @@ use serde_json;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::io::BufReader;
+use crate::models::query;
+use std::cmp::Ordering;
 
 pub fn format_pw(pw: String) -> String{
   (0..pw.len()).map(|_| "*").collect()
 }
 
-pub fn generate_deviceId() -> String {
+pub fn generate_device_id() -> String {
   Uuid::new_v4().to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct serv {
+pub struct Serv {
   pub count: i32,
   pub server: Vec<app::ServerList>,
 }
@@ -24,7 +26,7 @@ pub fn exists_config() -> bool {
   Path::new("config.json").exists()
 }
 
-pub fn read_server_from_config() -> serv {
+pub fn read_server_from_config() -> Serv {
   let file = File::open("config.json").unwrap();
   let reader = BufReader::new(file);
   let j = serde_json::from_reader(reader);
@@ -46,7 +48,7 @@ pub fn add_server_to_config(server: &app::ServerList) -> Result<(), std::io::Err
         None => {x.server.push(server.clone());x}
       }
     } else {
-      serv {
+      Serv {
         count: 1,
         server: vec!(server.clone())
       }
@@ -58,4 +60,16 @@ pub fn add_server_to_config(server: &app::ServerList) -> Result<(), std::io::Err
   j.serialize(&mut ser).unwrap();
   serde_json::to_writer(&File::create("config.json")?, &j);
   Ok(())
+}
+
+pub fn compere_items(a: &query::BaseItem, b: &query::BaseItem) -> Ordering {
+  if a.IndexNumber.is_some() {
+    if a.IndexNumber.unwrap() < b.IndexNumber.unwrap(){
+      return Ordering::Less;
+    }
+    if a.IndexNumber.unwrap() > b.IndexNumber.unwrap() {
+      return Ordering::Greater;
+    }
+  }
+ return Ordering::Equal;
 }
