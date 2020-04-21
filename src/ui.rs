@@ -136,14 +136,14 @@ fn draw_server<B>(f: &mut Frame<B>, server: &mut ServerList, app: &mut App, area
       }
       let mut t = Table::new(["name", "to watcht/watcht"].iter(), rows.into_iter())
         .block(list_block)
-        .widths(&[Constraint::Percentage(90), Constraint::Percentage(10)])
+        .widths(&[Constraint::Percentage(70), Constraint::Percentage(30)])
         .style(Style::default().fg(Color::White))
         .column_spacing(1);
       if player.time_out == 0{
         f.render(&mut t, chunks[1]);
       } else {
         let list_chunk = Layout::default()
-          .constraints([Constraint::Percentage(90), Constraint::Percentage(10)].as_ref())
+          .constraints([Constraint::Percentage(90), Constraint::Percentage(30)].as_ref())
           .split(chunks[1]);
         let mut cancel_block = Block::default()
           .borders(Borders::ALL)

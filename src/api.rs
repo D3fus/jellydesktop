@@ -96,18 +96,22 @@ pub async fn get_item(server: &mut ServerList, item: &query::BaseItem) -> Result
   Ok(())
 }
 
-#[tokio::main]
-pub async fn has_played(server: ServerList, item: query::BaseItem) -> Result<(), Error> {
+//#[tokio::main]
+pub async fn has_played(
+  uri: &String,
+  user: user::Authentication,
+  item_id: &String,
+  device_id: &String) -> Result<(), Error> {
+
   let time = SystemTime::now();
   let time: DateTime<Local> = time.into();
   let time = time.format("%Y%m%d%H%M%S");
-  let user = server.user.clone().unwrap();
-  let h = format_header(&server.device_id, Some(user.AccessToken));
+  let h = format_header(&device_id, Some(user.AccessToken));
   let uri = format!(
     "{}/Users/{}/PlayedItems/{}?DatePlayed={}",
-    server.uri,
+    uri,
     &user.User.Id,
-    item.clone().Id,
+    item_id,
     time
   );
 

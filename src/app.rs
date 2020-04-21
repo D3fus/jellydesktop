@@ -11,6 +11,7 @@ pub struct Player {
   pub user: Option<user::Authentication>,
   pub start_playing: bool,
   pub uri: String,
+  pub device_id: String,
   pub auto_play: bool,
   pub time_out: usize
 }
@@ -22,6 +23,7 @@ impl Player {
         list: vec![],
         user: None,
         uri: String::from(""),
+        device_id: String::from(""),
         start_playing: false,
         auto_play: false,
         time_out: 0
@@ -32,19 +34,20 @@ impl Player {
       self.user = server.user.clone();
       self.list = server.to_play.clone();
       self.uri = server.uri.clone();
+      self.device_id = server.device_id.clone();
       if self.list.len() > 1 {
         self.auto_play = true;
       }
     }
 
-  pub fn play_if_ready(&mut self) {
+  pub async fn play_if_ready(&mut self) {
     if !self.start_playing && self.list.len() > 0 {
       self.play();
       self.start_playing = true;
     } else if self.start_playing && self.list.len() > 0{
       if self.is_fin_playing() {
         if self.time_out == 0 {
-          self.play();
+          self.play().await;
         } else {
           self.time_out -= 1;
         }
@@ -52,7 +55,7 @@ impl Player {
     }
   }
 
-  pub fn play(&mut self) {
+  pub async fn play(&mut self) {
     let base = format!(
       "{}/Items/{}/Download?api_key={}",
       self.uri,
@@ -64,6 +67,11 @@ impl Player {
       .args(&[base, "--really-quiet".to_string()])
       .spawn()
       .unwrap();
+    let re = api::has_played(&self.uri, self.user.clone().unwrap(), &self.list[0], &self.device_id).await;
+    match re {
+      Ok(_e) => {},
+      Err(e) => {println!("{:?}", e)}
+    }
     self.list.remove(0);
     self.time_out = 100;
   }

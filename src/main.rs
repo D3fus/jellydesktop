@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         player.add(&server.clone().get_dawn_server());
         server.del_to_play();
       }
-      player.play_if_ready();
+      player.play_if_ready().await;
       terminal.draw(|mut f| ui::draw(&mut f, &mut server, &mut player))?;
       match events.next()? {
         Event::Input(key) => match key {
