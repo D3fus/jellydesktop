@@ -1,0 +1,21 @@
+stages:
+- build
+- release
+
+build:
+  image: rust:1.42
+  stage: build
+  script:
+    - apt-get update
+    - apt-get install musl-tools -y
+    - rustup default nightly && rustup update
+    - rustup target add x86_64-unknown-linux-musl --toolchain=nightly
+    - cargo build --release --target=x86_64-unknown-linux-musl
+
+release:
+  stage: release
+  only: tags
+  script:
+    - make changelog | tee release_changelog.txt
+  release:
+    name: My $CI_PROJECT_NAME Release 1.0-$CI_COMMIT_SHORT_SHA

@@ -1,5 +1,5 @@
 use tui::widgets::{Block, Gauge, Tabs, Row, Table, Borders, Paragraph, Text};
-use tui::layout::{Layout, Constraint, Direction, Rect};
+use tui::layout::{Layout, Alignment, Constraint, Direction, Rect};
 use tui::style::{Color, Modifier, Style};
 use tui::backend::Backend;
 use tui::Frame;
@@ -8,7 +8,7 @@ use crate::util;
 
 pub fn draw<B: Backend>(f: &mut Frame<B>, server: &mut App, player: &mut Player) {
   let chunks = Layout::default()
-    .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
+    .constraints([Constraint::Length(3), Constraint::Min(0), Constraint::Length(3)].as_ref())
     .split(f.size());
   let names = server.clone().get_server_names();
   let color = server.clone().window_focused(&server.title);
@@ -24,6 +24,7 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, server: &mut App, player: &mut Player)
     .style(Style::default().fg(Color::Green))
     .highlight_style(Style::default().fg(Color::Yellow));
   f.render(&mut tabs, chunks[0]);
+  draw_status_bar(f, server, player, chunks[2]);
   match server.server_state.clone().is_add() {
     true => {draw_add_server(f, server, chunks[1])},
     false => {
@@ -44,6 +45,34 @@ where
     .border_style(Style::default().fg(color))
     .title("help");
   f.render(&mut block, area);
+}
+
+fn draw_status_bar<B>(f: &mut Frame<B>, app: &mut App, player: &mut Player, area: Rect)
+where
+  B: Backend,
+{
+  let mut block = Block::default()
+    .borders(Borders::ALL)
+    .border_style(Style::default().fg(Color::White));
+  f.render(&mut block, area);
+  let chunks = Layout::default()
+    .constraints([Constraint::Percentage(33),Constraint::Percentage(33),Constraint::Percentage(33)].as_ref())
+    .margin(1)
+    .direction(Direction::Horizontal)
+    .split(area);
+
+  let text_left = [Text::raw("Config = c")];
+  let mut p_left = Paragraph::new(text_left.iter()).wrap(false);
+
+  let text_mid = [Text::raw("Autoplay = "), Text::styled("ON", Style::default().fg(Color::Green))];
+  let mut p_mid = Paragraph::new(text_mid.iter()).wrap(false).alignment(Alignment::Center);
+
+  let text_right = [Text::raw("Help = ?")];
+  let mut p_right = Paragraph::new(text_right.iter()).wrap(false).alignment(Alignment::Right);
+
+  f.render(&mut p_left, chunks[0]);
+  f.render(&mut p_mid, chunks[1]);
+  f.render(&mut p_right, chunks[2]);
 }
 
 fn draw_add_server<B>(f: &mut Frame<B>, server: &mut App, area: Rect)
