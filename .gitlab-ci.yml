@@ -7,7 +7,7 @@ build:
   stage: build
   script:
     - apt-get update
-    - apt-get install musl-tools -y
+    - apt-get install openssl musl-tools -y
     - rustup default nightly && rustup update
     - rustup target add x86_64-unknown-linux-musl --toolchain=nightly
     - cargo build --release --target=x86_64-unknown-linux-musl
