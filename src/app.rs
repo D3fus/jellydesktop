@@ -1,6 +1,6 @@
 use tui::style::{Color};
 use crate::api;
-use crate::models::{user, query};
+use crate::models::{user, query, config};
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::process::Child;
@@ -13,11 +13,12 @@ pub struct Player {
   pub uri: String,
   pub device_id: String,
   pub auto_play: bool,
-  pub time_out: usize
+  pub volume: String,
+  pub time_out: usize,
 }
 
 impl Player {
-  pub fn new() -> Player {
+  pub fn new(auto_play: bool, volume: String) -> Player {
       Player {
         player: Command::new("echo").spawn().unwrap(),
         list: vec![],
@@ -25,24 +26,41 @@ impl Player {
         uri: String::from(""),
         device_id: String::from(""),
         start_playing: false,
-        auto_play: false,
-        time_out: 0
+        auto_play: auto_play,
+        volume: volume,
+        time_out: 0,
       }
     }
 
+  pub fn on_key(&mut self, c: char) {
+    match c {
+      's' => {
+        self.stop_auto_play();
+      },
+      'n' => {
+        self.skip_auto_play();
+      },
+      _ => {}
+    }
+  }
+
+  pub fn skip_auto_play(&mut self) {
+    self.time_out = 0;
+  }
+
     pub fn add(&mut self, server: &ServerList) {
       self.user = server.user.clone();
-      self.list = server.to_play.clone();
+      if self.auto_play {
+        self.list = server.to_play.clone();
+      } else {
+        self.list = vec![server.to_play[0].clone()];
+      }
       self.uri = server.uri.clone();
       self.device_id = server.device_id.clone();
-      if self.list.len() > 1 {
-        self.auto_play = true;
-      }
     }
 
   pub async fn play_if_ready(&mut self) {
     if !self.start_playing && self.list.len() > 0 {
-      self.play();
       self.start_playing = true;
     } else if self.start_playing && self.list.len() > 0{
       if self.is_fin_playing() {
@@ -53,6 +71,12 @@ impl Player {
         }
       }
     }
+
+  }
+
+  pub fn stop_auto_play(&mut self) {
+    self.list = vec![];
+    self.time_out = 0;
   }
 
   pub async fn play(&mut self) {
@@ -64,7 +88,11 @@ impl Player {
     );
     //TODO error if not installed
     self.player = Command::new("mpv")
-      .args(&[base, "--really-quiet".to_string()])
+      .args(&[
+        base,
+        "--really-quiet".to_string(),
+        format!("--volume={}", self.volume)
+      ])
       .spawn()
       .unwrap();
     let re = api::has_played(&self.uri, self.user.clone().unwrap(), &self.list[0], &self.device_id).await;
@@ -94,7 +122,7 @@ impl Player {
 
   impl ServerState {
     pub fn new(mut server: Vec<ServerList>) -> ServerState {
-      server.push(ServerList {
+      let mut x = vec![ServerList {
         uri: "".to_string(),
         name: "add server +".to_string(),
         user: None,
@@ -105,9 +133,12 @@ impl Player {
         active_view: 0,
         active_list: 0,
         to_play: vec![]
-      });
+      }];
+      for serv in server{
+        x.push(serv);
+      }
       ServerState {
-        servers: server, index: 0, draw: 0
+        servers: x, index: 0, draw: 0
       }
     }
 
@@ -262,7 +293,24 @@ impl Player {
     }
   }
 
-  #[derive(Debug, Clone)]
+#[derive(Clone)]
+pub struct AppConfig {
+  pub auto_play_episode: bool,
+  pub auto_play_movie: bool,
+  pub mpv_volume: String
+}
+
+impl AppConfig {
+  pub fn new(c: &config::Config) -> AppConfig {
+    AppConfig {
+      auto_play_movie: c.auto_play_movie,
+      auto_play_episode: c.auto_play_episode,
+      mpv_volume: c.mpv_volume.clone()
+    }
+  }
+}
+
+  #[derive(Clone)]
   pub struct App {
     pub title: String,
     pub server_state: ServerState,
@@ -270,10 +318,14 @@ impl Player {
     pub input_mode: bool,
     pub select_window: String,
     pub create: CreateServer,
+    pub show_help: bool,
+    pub show_config: bool,
+    pub config: AppConfig,
   }
 
   impl App {
-    pub fn new(title: String, servers: Vec<ServerList>) -> App {
+    pub fn new(title: String, config: &config::Config) -> App {
+      let servers = config.server.clone();
       App {
         title: title,
         server_state: ServerState::new(servers),
@@ -281,15 +333,43 @@ impl Player {
         input_mode: false,
         select_window: "Server select".to_string(),
         create: CreateServer::new(),
+        show_help: false,
+        show_config: false,
+        config: AppConfig::new(config),
       }
     }
 
-    pub async fn on_key(&mut self, c: char) {
+    pub fn is_auto_play(self) -> bool {
+      let t = self.server_state.servers[self.server_state.draw].list.clone();
+      match t {
+        Some(l) => {
+          let x = l.Items[0].Type.clone();
+          if x == "Movie" {
+            self.config.auto_play_movie
+          }else if x == "Episode" {
+            self.config.auto_play_episode
+          }else {
+            false
+          }
+        },
+        None => false
+      }
+    }
+
+    pub fn show_server(self) -> bool {
+      if self.show_config || self.show_help{
+        false
+      } else {
+        true
+      }
+    }
+
+    pub async fn on_key(&mut self, c: char, config: config::Config) {
       if self.input_mode {
         if &self.select_window == "add server +" {
           match c {
             '\n' => {
-              self.on_enter().await;
+              self.on_enter(config).await;
             },
             _ => {
               self.create.input(c);
@@ -298,9 +378,11 @@ impl Player {
         }
       } else {
         match c {
+          //quit app
           'q' => {
             self.should_quit = true;
           },
+          //navigation in window
           'l' => {
             self.on_right();
           },
@@ -308,11 +390,16 @@ impl Player {
             self.on_left();
           },
           'k' => {
-            self.on_up();
+            if !self.show_config{
+              self.on_up();
+            }
           },
           'j' => {
-            self.on_down();
+            if !self.show_config{
+              self.on_down();
+            }
           },
+          //navigate windows
           'J' => {
             self.win_down();
           },
@@ -325,21 +412,59 @@ impl Player {
           'L' => {
             self.win_right();
           },
+          //set whatchted or unwatched
+          'w' => {
+           
+          },
+          //open config/help
           '?' => {
-            //TODO help page
+            self.change_draw_mode('?');
           },
           'c' => {
-            //TODO config page
+            self.change_draw_mode('c');
           },
+          //turn auto play on/off
+          'a' => {
+            self.change_auto_play();
+          }
+          //enter
           '\n' => {
-            self.on_enter().await;
+            if !self.show_config{
+              self.on_enter(config).await;
+            }
           }
           _ => {}
         }
       }
     }
 
-    async fn on_enter(&mut self) {
+    pub fn change_auto_play(&mut self) {
+      let list = self.clone().get_dawn_server().list.clone();
+      match list {
+        Some(l) => {
+          let t = l.Items[0].Type.clone();
+          if t == "Episode" {
+            self.config.auto_play_episode = !self.config.auto_play_episode;
+          }
+          if t == "Movie" {
+            self.config.auto_play_movie = !self.config.auto_play_movie;
+          }
+        },
+        None => {}
+      }
+    }
+
+    pub fn change_draw_mode(&mut self, c: char) {
+      if c == '?' {
+        self.show_config = false;
+        self.show_help = !self.show_help;
+      } else {
+        self.show_help = false;
+        self.show_config = !self.show_config;
+      }
+    }
+
+    async fn on_enter(&mut self, config: config::Config) {
       if &self.select_window == "Server select" {
         let i = self.server_state.index;
         self.server_state.draw = i;
@@ -349,7 +474,7 @@ impl Player {
           self.select_window = self.server_state.servers[self.server_state.draw].name.clone();
         }
       }else if &self.select_window == "add server +" {
-        let t = self.create.clone().on_enter(self.input_mode, self).await;
+        let t = self.create.clone().on_enter(self.input_mode, self, config).await;
         match t {
           Some(b) => {
             self.input_mode = b;
@@ -536,12 +661,12 @@ impl CreateServer {
     }
   }
 
-  pub async fn on_enter(mut self, input: bool, app: &mut App) -> Option<bool> {
+  pub async fn on_enter(mut self, input: bool, app: &mut App, config: config::Config) -> Option<bool> {
     if self.active == 3{
       if !self.uri.contains("https://"){
         self.uri = format!("https://{}", self.uri);
       }
-      let x = api::login(&self, app).await;
+      let x = api::login(&self, app, config).await;
       match x {
         Ok(d) => {},
         Err(e) => {}

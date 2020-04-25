@@ -3,7 +3,7 @@ use crate::app::{ServerList, CreateServer, App};
 use std::collections::HashMap;
 use crate::util;
 use reqwest::Error;
-use crate::models::{user, query};
+use crate::models::{user, query, config};
 use crate::app;
 use std::time::SystemTime;
 use chrono::DateTime;
@@ -22,7 +22,7 @@ pub fn format_header(device_id: &String, token: Option<String>) -> Vec<String> {
   vec!["X-Emby-Authorization".to_string(), header]
 }
 
-pub async fn login(server: &CreateServer, app: &mut App) -> Result<(), Error> {
+pub async fn login(server: &CreateServer, app: &mut App, mut config: config::Config) -> Result<(), Error> {
   let mut login = HashMap::new();
   let device_id = util::generate_device_id();
   login.insert("username".to_string(), &server.username);
@@ -42,8 +42,8 @@ pub async fn login(server: &CreateServer, app: &mut App) -> Result<(), Error> {
     //let create = &app.server_state.servers[app.server_state.servers.len() -1];
     //&app.server_state.servers.pop();
     let mut new_server = app::ServerList::new(user, server, device_id);
-    util::add_server_to_config(&new_server);
-    app.select_window = "Server select".to_string(); 
+    config.add_server(new_server.clone());
+    app.select_window = "Server select".to_string();
     new_server.get_server_view().await;
     app.server_state.servers.push(new_server.clone());
     //app.server_state.servers.push(create);

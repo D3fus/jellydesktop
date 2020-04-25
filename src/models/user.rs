@@ -2,8 +2,6 @@
 use serde::{Serialize, Deserialize};
 use serde;
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Authentication {
   pub User: User,
@@ -30,21 +28,3 @@ pub struct User {
   pub Policy: Option<String>,
   pub PrimaryImageAspectRatio: Option<f64>
 }
-
-//struct UserConfiguration {
-//  AudioLanguagePreference: String,
-//  PlayDefaultAudioTrack: bool,
-//  SubtitleLanguagePreference: String,
-//  DisplayMissingEpisodes: bool,
-//  GroupedFolders: Vec<String>,
-//  SubtitleMode: String,
-//  DisplayCollectionsView: bool,
-//  EnableLocalPassword: bool,
-//  OrderedViews: Vec<String>,
-//  LatestItemsExcludes: Vec<String>,
-//  MyMediaExcludes: Vec<String>,
-//  HidePlayedInLatest: bool,
-//  RememberAudioSelections: bool,
-//  RememberSubtitleSelections: bool,
-//  EnableNextEpisodeAutoPlay: bool
-//}

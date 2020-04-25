@@ -14,6 +14,7 @@ mod models;
 
 use event::{Events, Event, Config};
 use app::{App, Player};
+use models::config;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -27,25 +28,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
       tick_rate: Duration::from_millis(200),
       ..Config::default()
     });
-    let mut server = App::new("Server select".to_string(), vec![]);
-    let mut player = Player::new();
-    if util::exists_config() {
-      let serv = util::read_server_from_config();
-      for s in serv.server {
-        server.server_state.servers.push(s.clone());
-      } 
-    }
+
+    let mut config = config::Config::read();
+    let mut server = App::new("Server select".to_string(), &config);
+    let mut player = Player::new(false, config.mpv_volume.clone());
+
     loop {
       if server.clone().to_play() {
+        player.auto_play = server.clone().is_auto_play();
         player.add(&server.clone().get_dawn_server());
         server.del_to_play();
       }
       player.play_if_ready().await;
-      terminal.draw(|mut f| ui::draw(&mut f, &mut server, &mut player))?;
+
+      terminal.draw(|mut f| ui::draw(&mut f, &mut server, &mut player, &mut config))?;
       match events.next()? {
         Event::Input(key) => match key {
           Key::Char(c) => {
-            server.on_key(c).await;
+            player.on_key(c);
+            if server.show_config {
+              config.on_key(c, &mut server);
+            } else {
+              server.on_key(c, config.clone()).await;
+            }
           },
           Key::Left => {
             server.on_left();
@@ -54,13 +59,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
             server.on_right();
           },
           Key::Up => {
-            server.on_up();
+            if server.show_config {
+              config.on_up();
+            } else {
+              server.on_up();
+            }
           },
           Key::Down => {
-            server.on_down();
+            if server.show_config {
+              config.on_down()
+            } else {
+              server.on_down();
+            }
           },
           Key::Backspace => {
-            server.on_backspace();
+            if server.show_config {
+              config.on_backspace(&mut server);
+            }else {
+              server.on_backspace();
+            }
           },
           _ => {}
         },
