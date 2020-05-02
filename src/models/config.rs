@@ -1,4 +1,5 @@
 use crate::app;
+use xdg;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use serde_json;
@@ -41,28 +42,40 @@ fn default_mpv_volume() -> String {
   String::from("100")
 }
 
+fn get_base_dir() -> xdg::BaseDirectories {
+  xdg::BaseDirectories::with_prefix("jellydesktop").unwrap()
+}
+
+fn get_config_dir() -> std::path::PathBuf {
+  get_base_dir().place_config_file("config.json")
+                .expect("cannot create configuration directory")
+}
+
 impl Config {
   pub fn read() -> Config {
-      if !Path::new("config.json").exists() {
-          File::create("config.json");
+      let dir = get_config_dir();
+      if !Path::new(&dir).exists() {
+          File::create(&dir);
       }
-      let file = File::open("config.json").unwrap();
+      let file = File::open(&dir).unwrap();
       let reader = BufReader::new(file);
       let j: Config = serde_json::from_reader(reader).unwrap();
       j
   }
 
   pub fn add_server(&mut self, server: app::ServerList) -> Result<(), std::io::Error> {
+      let dir = get_config_dir();
       let s = self.server.iter().position(|s| s.name == server.name);
       if s.is_none() {
           self.server.push(server);
-          serde_json::to_writer(&File::create("config.json")?, &self);
+          serde_json::to_writer(&File::create(&dir)?, &self);
       }
       Ok(())
   }
 
   pub fn update(self) -> Result<(), std::io::Error> {
-    serde_json::to_writer(&File::create("config.json")?, &self);
+    let dir = get_config_dir();
+    serde_json::to_writer(&File::create(&dir)?, &self);
     Ok(())
   }
 

@@ -222,6 +222,12 @@ fn draw_server<B>(f: &mut Frame<B>, server: &mut ServerList, app: &mut App, area
         }
         rows.push(Row::StyledData(vec![name, to_play].into_iter(), Style::default().fg(color)));
       }
+      let h = chunks[0].height as usize -5;
+      if server.active_list > h {
+        for i in 0..server.active_list as usize - h{
+          rows.remove(0);
+        }
+      }
       let mut t = Table::new(["name", "to watcht/watcht"].iter(), rows.into_iter())
         .block(list_block)
         .widths(&[Constraint::Percentage(70), Constraint::Percentage(30)])
