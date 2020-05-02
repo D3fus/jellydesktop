@@ -1,49 +1,131 @@
 use tui::widgets::{Block, Gauge, Tabs, Row, Table, Borders, Paragraph, Text};
-use tui::layout::{Layout, Constraint, Direction, Rect};
+use tui::layout::{Layout, Alignment, Constraint, Direction, Rect};
 use tui::style::{Color, Modifier, Style};
 use tui::backend::Backend;
 use tui::Frame;
 use crate::app::{App, ServerList, Player};
+use crate::models::config;
 use crate::util;
 
-pub fn draw<B: Backend>(f: &mut Frame<B>, server: &mut App, player: &mut Player) {
-  let chunks = Layout::default()
-    .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
-    .split(f.size());
-  let names = server.clone().get_server_names();
-  let color = server.clone().window_focused(&server.title);
-  let mut tabs = Tabs::default()
-    .block(
-      Block::default()
-      .borders(Borders::ALL)
-      .title(&server.title)
-      .border_style(Style::default().fg(color))
-    )
-    .titles(&names)
-    .select(server.server_state.index)
-    .style(Style::default().fg(Color::Green))
-    .highlight_style(Style::default().fg(Color::Yellow));
-  f.render(&mut tabs, chunks[0]);
-  match server.server_state.clone().is_add() {
-    true => {draw_add_server(f, server, chunks[1])},
-    false => {
-      let draw = server.server_state.draw;
-      let serv = &mut server.clone().server_state.servers[draw];
-      draw_server(f, serv, server, chunks[1], player)
+pub fn draw<B: Backend>(f: &mut Frame<B>, server: &mut App, player: &mut Player, config: &mut config::Config) {
+  if server.clone().show_server() {
+    let chunks = Layout::default()
+      .constraints([Constraint::Length(3), Constraint::Min(0), Constraint::Length(3)].as_ref())
+      .split(f.size());
+    let names = server.clone().get_server_names();
+    let color = server.clone().window_focused(&server.title);
+    let mut tabs = Tabs::default()
+      .block(
+        Block::default()
+        .borders(Borders::ALL)
+        .title(&server.title)
+        .border_style(Style::default().fg(color))
+      )
+      .titles(&names)
+      .select(server.server_state.index)
+      .style(Style::default().fg(Color::White))
+      .highlight_style(Style::default().fg(Color::Blue));
+    f.render(&mut tabs, chunks[0]);
+    draw_status_bar(f, server, player, chunks[2]);
+    match server.server_state.clone().is_add() {
+      true => {draw_add_server(f, server, chunks[1])},
+      false => {
+        let draw = server.server_state.draw;
+        let serv = &mut server.clone().server_state.servers[draw];
+        draw_server(f, serv, server, chunks[1], player)
+      }
+    }
+  } else {
+    if server.show_help {
+      draw_help_page(f, server)
+    } else {
+      draw_config_page(f, server, config, player)
     }
   }
 }
 
-fn draw_help_page<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
+fn format_bool_to_text<'b>(b: bool) -> Text<'b> {
+  if b {
+    Text::styled("ON", Style::default().fg(Color::Green))
+  } else {
+    Text::styled("OFF", Style::default().fg(Color::Red))
+  }
+}
+
+fn get_style<'b>(position: usize, p2: usize) -> Style {
+  if position == p2{
+    Style::default().fg(Color::Blue)
+  } else {
+    Style::default().fg(Color::White)
+  }
+}
+
+fn draw_config_page<B>(f: &mut Frame<B>, app: &mut App, config: &mut config::Config, player: &mut Player)
 where
   B: Backend,
 {
+  let block = Block::default()
+    .borders(Borders::ALL)
+    .title("config")
+    .border_style(Style::default().fg(Color::Blue));
+  let text = [
+    Text::styled("Mpv Volume: ", get_style(config.active, 0)),
+    Text::raw(config.mpv_volume.clone().to_string()),
+    Text::styled("\nAuto play Episode: ", get_style(config.active, 1)),
+    format_bool_to_text(config.auto_play_episode.clone()),
+    Text::styled("\nAuto play Movie: ", get_style(config.active, 2)),
+    format_bool_to_text(config.auto_play_movie.clone())
+  ];
+  let mut p = Paragraph::new(text.iter()).wrap(false).block(block);
+  f.render(&mut p, f.size())
+}
+
+fn draw_help_page<B>(f: &mut Frame<B>, app: &mut App)
+where
+  B: Backend,
+{
+  let chunk = Layout::default()
+    .constraints([Constraint::Percentage(100)].as_ref())
+    .split(f.size());
   let color = app.clone().window_focused(&"help".to_string());
   let mut block = Block::default()
     .borders(Borders::ALL)
     .border_style(Style::default().fg(color))
     .title("help");
+  f.render(&mut block, chunk[0]);
+}
+
+fn draw_status_bar<B>(f: &mut Frame<B>, app: &mut App, player: &mut Player, area: Rect)
+where
+  B: Backend,
+{
+  let mut block = Block::default()
+    .borders(Borders::ALL)
+    .border_style(Style::default().fg(Color::White));
   f.render(&mut block, area);
+  let chunks = Layout::default()
+    .constraints([Constraint::Percentage(33),Constraint::Percentage(33),Constraint::Percentage(33)].as_ref())
+    .margin(1)
+    .direction(Direction::Horizontal)
+    .split(area);
+
+  let text_left = [Text::raw("Config = c")];
+  let mut p_left = Paragraph::new(text_left.iter()).wrap(false);
+
+  let text_mid = [
+    Text::raw("Autoplay = "),
+    format_bool_to_text(app.clone().is_auto_play()),
+    Text::raw(" | Volume = "),
+    Text::styled(player.volume.to_string(), Style::default().fg(Color::Cyan))
+  ];
+  let mut p_mid = Paragraph::new(text_mid.iter()).wrap(false).alignment(Alignment::Center);
+
+  let text_right = [Text::raw("Help = ?")];
+  let mut p_right = Paragraph::new(text_right.iter()).wrap(false).alignment(Alignment::Right);
+
+  f.render(&mut p_left, chunks[0]);
+  f.render(&mut p_mid, chunks[1]);
+  f.render(&mut p_right, chunks[2]);
 }
 
 fn draw_add_server<B>(f: &mut Frame<B>, server: &mut App, area: Rect)
@@ -132,14 +214,26 @@ fn draw_server<B>(f: &mut Frame<B>, server: &mut ServerList, app: &mut App, area
             }
           }
         };
-        rows.push(Row::StyledData(vec![item.Name, to_play].into_iter(), Style::default().fg(color)));
+        let name;
+        if item.IndexNumber.is_some(){
+          name = format!("{}. {}", item.IndexNumber.clone().unwrap(), item.Name);
+        } else {
+          name = item.Name
+        }
+        rows.push(Row::StyledData(vec![name, to_play].into_iter(), Style::default().fg(color)));
+      }
+      let h = chunks[0].height as usize -5;
+      if server.active_list > h {
+        for i in 0..server.active_list as usize - h{
+          rows.remove(0);
+        }
       }
       let mut t = Table::new(["name", "to watcht/watcht"].iter(), rows.into_iter())
         .block(list_block)
         .widths(&[Constraint::Percentage(70), Constraint::Percentage(30)])
         .style(Style::default().fg(Color::White))
         .column_spacing(1);
-      if player.time_out == 0{
+      if player.list.len() == 0 || !player.is_fin_playing() || !player.auto_play || player.time_out == 0 {
         f.render(&mut t, chunks[1]);
       } else {
         let list_chunk = Layout::default()
@@ -167,12 +261,19 @@ fn draw_server<B>(f: &mut Frame<B>, server: &mut ServerList, app: &mut App, area
 
         f.render(&mut gauge, a_chunk[0]);
 
-        let sec = player.time_out as f32 * 0.2;
-        let u = format!("{} sec", sec.ceil().to_string());
-          let text = vec![Text::styled(u, Style::default().fg(Color::White))];
-        let mut p = Paragraph::new(text.iter()).wrap(true).block(cancel_block);
+        let s = app.server_state.servers[app.server_state.draw].clone();
+        let text = format!(
+          "Next playing: {}. {}",
+          (s.active_list + 2).to_string(),
+          s.list.unwrap().Items[s.active_list +1].Name);
+        let text = [
+          Text::raw(text),
+          Text::raw("\n (s)top | play (n)ext")
+        ];
+        let mut p = Paragraph::new(text.iter()).wrap(false).alignment(Alignment::Center);
+        f.render(&mut p, a_chunk[1]);
+
         f.render(&mut t, list_chunk[0]);
-        //f.render(&mut p, list_chunk[1]);
       }
     },
     None => {}

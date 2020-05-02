@@ -1,0 +1,27 @@
+#+TITLE: Jellydesktop - tui for Jellyfin
+
+* Table of Contents :TOC:
+- [[#description][Description]]
+- [[#todo][TODO]]
+- [[#install][install]]
+- [[#how-to-use][How to use]]
+
+* Description
+DONT USE IT - This code is bad
+jellydesktop is tui for jellyfin, but dont expect much.
+
+* TODO
++ Error handeling
++ Code cleanup
++ Help page
+
+* install
+just run ~cargo install --git https://gitlab.com/cocainefarm/jellydesktop.git~
+--or--
+clone the repo ~git clone https://gitlab.com/cocainefarm/jellydesktop.git~
+cd into it ~cd jellydesktop~
+run ~cargo intall --path ./~
+
+* How to use
+You navigate thro jellydesktop with the vim home row.
+To move between windows, use the shift key with the vim home row.
