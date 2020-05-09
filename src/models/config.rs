@@ -5,6 +5,7 @@ use std::fs::File;
 use serde_json;
 use std::path::Path;
 use std::io::BufReader;
+use std::io::Write;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -51,11 +52,18 @@ fn get_config_dir() -> std::path::PathBuf {
                 .expect("cannot create configuration directory")
 }
 
+fn create_config_file() -> Result<(), std::io::Error> {
+  let dir = get_config_dir();
+  let mut file = File::create(&dir)?;
+  file.write_all(b"{}")?;
+  Ok(())
+}
+
 impl Config {
   pub fn read() -> Config {
       let dir = get_config_dir();
       if !Path::new(&dir).exists() {
-          File::create(&dir);
+        create_config_file();
       }
       let file = File::open(&dir).unwrap();
       let reader = BufReader::new(file);
