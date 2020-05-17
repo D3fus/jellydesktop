@@ -196,13 +196,9 @@ impl Player {
       }
     }
 
-    pub async fn get_server_view(&mut self) {
-      //TODO login error
-      let t = api::get_view(self).await;
-      match t {
-        Ok(u) => {},
-        Err(e) => {println!("{:#?}", e);}
-      }
+    pub async fn get_server_view(&mut self) -> Result<(), String> {
+      api::get_view(self).await?;
+      Ok(())
     }
 
     pub fn add_view(&mut self, view: query::QueryResult) {
@@ -261,18 +257,15 @@ impl Player {
       }
     }
 
-    pub async fn on_enter_view(&mut self) {
+    pub async fn on_enter_view(&mut self) -> Result<(), String> {
         let item = &self.view.clone().unwrap().Items[self.active_view];
-        let re = api::get_item(self, item).await;
-        match re {
-          Ok(e) => {},
-          Err(e) => {println!("{:?}", e)}
-        };
+        api::get_item(self, item).await?;
         self.active_list = 0;
         self.list_name = item.Name.clone();
+        Ok(())
     }
 
-    pub async fn on_enter_list(&mut self) {
+    pub async fn on_enter_list(&mut self) -> Result<(), String> {
       let t = &self.list.clone().unwrap().Items[self.active_list].Type;
       if t == "Movie" || t == "Episode" {
         for item in self.list.clone().unwrap().Items {
@@ -283,13 +276,10 @@ impl Player {
         }
       } else {
         let item = &self.list.clone().unwrap().Items[self.active_list];
-        let re = api::get_item(self, item).await;
-        match re {
-          Ok(e) => {},
-          Err(e) => {println!("{:?}", e)}
-        };
+        api::get_item(self, item).await?;
         self.active_list = 0;
       }
+      Ok(())
     }
   }
 
@@ -321,6 +311,7 @@ impl AppConfig {
     pub show_help: bool,
     pub show_config: bool,
     pub config: AppConfig,
+    pub error: String,
   }
 
   impl App {
@@ -336,6 +327,7 @@ impl AppConfig {
         show_help: false,
         show_config: false,
         config: AppConfig::new(config),
+        error: String::from("")
       }
     }
 

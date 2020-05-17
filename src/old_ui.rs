@@ -7,6 +7,26 @@ use crate::app::{App, ServerList, Player};
 use crate::models::config;
 use crate::util;
 
+pub fn draw_error<B: Backend>(f: &mut Frame<B>, error: &String) {
+  let chunks = Layout::default()
+    .constraints([Constraint::Percentage(40), Constraint::Percentage(20), Constraint::Percentage(40)].as_ref())
+    .split(f.size());
+  let mid_chunk = Layout::default()
+    .direction(Direction::Horizontal)
+    .constraints([Constraint::Percentage(20), Constraint::Percentage(60), Constraint::Percentage(20)].as_ref())
+    .split(chunks[1]);
+  let block = Block::default()
+    .borders(Borders::ALL)
+    .title("Error")
+    .border_style(Style::default().fg(Color::Red));
+  let text = vec![Text::styled(error, Style::default().fg(Color::Red))];
+  let mut p = Paragraph::new(text.iter())
+    .wrap(true)
+    .block(block)
+    .alignment(Alignment::Center);
+  f.render(&mut p, mid_chunk[1]);
+}
+
 pub fn draw<B: Backend>(f: &mut Frame<B>, server: &mut App, player: &mut Player, config: &mut config::Config) {
   if server.clone().show_server() {
     let chunks = Layout::default()

@@ -52,59 +52,80 @@ fn get_config_dir() -> std::path::PathBuf {
                 .expect("cannot create configuration directory")
 }
 
-fn create_config_file() -> Result<(), std::io::Error> {
+fn create_config_file() -> Result<(), String> {
   let dir = get_config_dir();
-  let mut file = File::create(&dir)?;
-  file.write_all(b"{}")?;
-  Ok(())
+  let mut file = match File::create(&dir) {
+    Ok(f) => {f},
+    Err(_e) => {return Err(String::from("Error creating config file"))}
+  };
+  match file.write_all(b"{}") {
+    Ok(()) => {Ok(())},
+    Err(_e) => {Err(String::from("Error writing to config file"))}
+  }
 }
 
 impl Config {
-  pub fn read() -> Config {
+  pub fn read() -> Result<Config, String> {
       let dir = get_config_dir();
       if !Path::new(&dir).exists() {
-        create_config_file();
+        create_config_file()?;
       }
       let file = File::open(&dir).unwrap();
       let reader = BufReader::new(file);
-      let j: Config = serde_json::from_reader(reader).unwrap();
-      j
+      let j: Config = match serde_json::from_reader(reader) {
+        Ok(j) => j,
+        Err(_e) => return Err(String::from("Error reading config file"))
+      };
+      Ok(j)
   }
 
-  pub fn add_server(&mut self, server: app::ServerList) -> Result<(), std::io::Error> {
+  pub fn add_server(&mut self, server: app::ServerList) -> Result<(), String> {
       let dir = get_config_dir();
       let s = self.server.iter().position(|s| s.name == server.name);
       if s.is_none() {
           self.server.push(server);
-          serde_json::to_writer(&File::create(&dir)?, &self);
+          let file = match File::create(&dir) {
+            Ok(f) => {f},
+            Err(_e) => {return Err(String::from("Error opening config file"))}
+          };
+          match serde_json::to_writer(&file, &self) {
+            Ok(()) => {},
+            Err(_e) => {return Err(String::from("Error writing to config"))}
+          };
       }
       Ok(())
   }
 
-  pub fn update(self) -> Result<(), std::io::Error> {
+  pub fn update(&self) -> Result<(), String> {
     let dir = get_config_dir();
-    serde_json::to_writer(&File::create(&dir)?, &self);
-    Ok(())
+    let file = match File::create(&dir) {
+      Ok(f) => {f},
+      Err(_e) => {return Err(String::from("Error opening config file"))}
+    };
+    match serde_json::to_writer(&file, &self) {
+      Ok(()) => {Ok(())},
+      Err(_e) => {Err(String::from("Error writing to config"))}
+    }
   }
 
-  fn on_enter(&mut self, app: &mut app::App){
+  fn on_enter(&mut self, app: &mut app::App) -> Result<(), String> {
     match self.active {
       0 => {
         app.input_mode = !app.input_mode;
         app.config.mpv_volume = self.mpv_volume.clone();
-        self.clone().update();
+        self.update()
       },
       1 => {
         self.auto_play_episode = !self.auto_play_episode;
         app.config.auto_play_episode = self.auto_play_episode;
-        self.clone().update();
+        self.update()
       },
       2 => {
         self.auto_play_movie = !self.auto_play_movie;
         app.config.auto_play_movie = self.auto_play_movie;
-        self.clone().update();
+        self.update()
       },
-      _ => {}
+      _ => {Ok(())}
     }
   }
 
@@ -112,21 +133,21 @@ impl Config {
     self.mpv_volume.push(c);
   }
 
-  pub fn on_key(&mut self, c: char, app: &mut app::App) {
+  pub fn on_key(&mut self, c: char, app: &mut app::App) -> Result<(), String> {
     if app.input_mode {
       match c as u32 {
         48..= 57 => {
           self.add_to_volume(c);
         },
         10 => {
-          self.on_enter(app);
+          return self.on_enter(app)
         },
         _ => {}
       }
     } else {
       match c {
         '\n' => {
-          self.on_enter(app);
+          return self.on_enter(app)
         },
         'j' => {
           self.on_down();
@@ -143,6 +164,7 @@ impl Config {
         _ => {}
       }
     }
+    Ok(())
   }
 
   pub fn on_backspace(&mut self, app: &mut app::App) {

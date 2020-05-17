@@ -1,125 +1,73 @@
 use reqwest;
-use crate::app::{ServerList, CreateServer, App};
 use std::collections::HashMap;
-use crate::util;
-use reqwest::Error;
-use crate::models::{user, query, config};
-use crate::app;
-use std::time::SystemTime;
-use chrono::DateTime;
-use chrono::offset::Local;
+use hostname;
+use crate::app::{error, server, app, create_server};
+use crate::models::{user};
 
-pub fn format_header(device_id: &String, token: Option<String>) -> Vec<String> {
-  let mut header = format!(
-    "MediaBrowser Client=jellydesktop, Device=Jellydesktop, DeviceId={}, Version=0.0.1",
-    device_id);
-  match token {
-    Some(t) => {
-      header = format!("{}, Token={}", header, t);
-    },
-    None => {}
-  };
-  vec!["X-Emby-Authorization".to_string(), header]
+fn get_header(server: &server::Server) -> Vec<String> {
+    let host = match hostname::get() {
+        Ok(host) => host.into_string().unwrap(),
+        Err(err) => String::from("localhost")
+    };
+    let mut header = format!(
+        "MediaBrowser Client=jellydesktop, Device={}, DeviceId={}, Version=0.0.1",
+        host, server.uuid);
+    let empty = String::from("");
+    match &server.user.token {
+        _ => {
+        header = format!("{}, Token={}", header, server.user.token);
+        },
+        empty => {}
+    };
+    vec!["X-Emby-Authorization".to_string(), header]
 }
 
-pub async fn login(server: &CreateServer, app: &mut App, mut config: config::Config) -> Result<(), Error> {
-  let mut login = HashMap::new();
-  let device_id = util::generate_device_id();
-  login.insert("username".to_string(), &server.username);
-  login.insert("pw".to_string(), &server.password);
-  let uri = format!("{}{}", &server.uri, String::from("/Users/AuthenticateByName"));
+async fn get(uri: String, server: &server::Server) -> Result<reqwest::Response, error::Error> {
+    let header = get_header(server);
 
-  let h = format_header(&device_id, None);
-  let client = reqwest::Client::new();
-  let res = client.post(&uri)
-    .json(&login)
-    .header(&h[0], &h[1])
-    .send()
-    .await?;
-
-  if res.status() == 200 {
-    let user: user::Authentication = res.json().await?;
-    //let create = &app.server_state.servers[app.server_state.servers.len() -1];
-    //&app.server_state.servers.pop();
-    let mut new_server = app::ServerList::new(user, server, device_id);
-    config.add_server(new_server.clone());
-    app.select_window = "Server select".to_string();
-    new_server.get_server_view().await;
-    app.server_state.servers.push(new_server.clone());
-    //app.server_state.servers.push(create);
-  } else {
-   //error 
-  }
-
-  Ok(())
-  
+    let client = reqwest::Client::new();
+    match client.get(&uri)
+        .header(&header[0], &header[1])
+        .send()
+        .await {
+            Ok(res) => Ok(res),
+            Err(_e) => Err(error::Error::error("Error while requesting data"))
+        }
 }
 
-pub async fn get_view(server: &mut ServerList) -> Result<(), Error> {
-  let user = server.user.clone().unwrap();
-  let uri = format!("{}/Users/{}/Views", server.uri, &user.User.Id);
+async fn post(
+    uri: String,
+    server: &server::Server,
+    data: HashMap<String, &String>) -> Result<reqwest::Response, error::Error> {
 
-  let h = format_header(&server.device_id, Some(user.AccessToken));
-  let client = reqwest::Client::new();
-  let res = client.get(&uri)
-    .header(&h[0], &h[1])
-    .send()
-    .await?;
+    let header = get_header(server);
 
-  if res.status() == 200 {
-    let j: query::QueryResult = res.json().await?;
-    server.add_view(j);
-  } else {
-    println!("{:?}", res.text().await?);
-  }
-  Ok(())
+    let client = reqwest::Client::new();
+    match client.post(&uri)
+        .json(&data)
+        .header(&header[0], &header[1])
+        .send()
+        .await {
+            Ok(res) => Ok(res),
+            Err(_e) => Err(error::Error::error("Error while requesting data"))
+        }
 }
 
-pub async fn get_item(server: &mut ServerList, item: &query::BaseItem) -> Result<(), Error> {
-  let user = server.user.clone().unwrap();
-  let h = format_header(&server.device_id, Some(user.AccessToken));
-  let uri = format!("{}/Users/{}/Items?ParentId={}", server.uri, &user.User.Id, item.clone().Id);
+pub async fn login(
+    server_data: &create_server::CreateServer,
+    server: &mut server::Server) -> Result<(), error::Error> {
 
-  let client = reqwest::Client::new();
-  let res = client.get(&uri)
-    .header(&h[0], &h[1])
-    .send()
-    .await?;
+    let mut login = HashMap::new();
+    login.insert(String::from("username"), &server_data.username);
+    login.insert(String::from("pw"), &server_data.password);
 
-  if res.status() == 200 {
-    let mut j: query::QueryResult = res.json().await?;
-    j.Items.sort_by(util::compere_items);
-    server.add_list(j);
-  }else{
-    println!("{:?}", res.text().await);
-  }
-  Ok(())
-}
-
-//#[tokio::main]
-pub async fn has_played(
-  uri: &String,
-  user: user::Authentication,
-  item_id: &String,
-  device_id: &String) -> Result<(), Error> {
-
-  let time = SystemTime::now();
-  let time: DateTime<Local> = time.into();
-  let time = time.format("%Y%m%d%H%M%S");
-  let h = format_header(&device_id, Some(user.AccessToken));
-  let uri = format!(
-    "{}/Users/{}/PlayedItems/{}?DatePlayed={}",
-    uri,
-    &user.User.Id,
-    item_id,
-    time
-  );
-
-  let client = reqwest::Client::new();
-  let res = client.post(&uri)
-    .header(&h[0], &h[1])
-    .header("Content-Length", "0")
-    .send()
-    .await?;
-  Ok(())
+    let uri = format!("{}{}", &server_data.uri, String::from("/Users/AuthenticateByName"));
+    let res = post(uri, &server, login).await?;
+    match res.json::<user::Authentication>().await {
+        Ok(user) => {
+            server.get_data_from_login(user);
+            Ok(())
+        },
+        Err(_e) => Err(error::Error::error("Error while parsing response"))
+    }
 }
