@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
       ..Config::default()
     });
 
-    let mut app = App::new();
+    let mut app = App::new().await;
     loop {
         terminal.draw(|mut frame| ui::draw::draw(&mut frame, &mut app))?;
         match events.next()? {

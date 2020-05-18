@@ -1,5 +1,5 @@
 use crate::util;
-use crate::models::{user};
+use crate::models::{user, query};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,5 +59,55 @@ impl Server {
         self.user.add_user(user.User.Name);
         self.user.add_token(user.AccessToken);
         self.user.add_id(user.User.Id);
+    }
+}
+
+pub struct ServerList {
+    pub name: String,
+    pub id: String,
+    pub parent_id: String,
+    pub category: String,
+    pub index_nummer: i32
+}
+
+impl ServerList {
+    pub fn format_from_query(query: query::QueryResult) -> Vec<ServerList> {
+        query.Items.iter().map(|item| {
+            let mut parent_id: String;
+            let mut index: i32;
+            if item.ParentId.is_some() {
+                parent_id = item.ParentId.clone().unwrap();
+            } else {
+                parent_id = String::from("");
+            }
+            if item.IndexNumber.is_some() {
+                index = item.IndexNumber.clone().unwrap();
+            } else {
+                index = -1;
+            }
+            ServerList {
+                name: item.Name.clone(),
+                id: item.Id.clone(),
+                parent_id: parent_id,
+                category: item.Type.clone(),
+                index_nummer: index
+            }
+        }).collect()
+    }
+}
+
+pub struct ServerView {
+    pub name: String,
+    pub id: String
+}
+
+impl ServerView {
+    pub fn format_from_query(query: query::QueryResult) -> Vec<ServerView> {
+        query.Items.iter().map(|item| {
+            ServerView{
+                name: item.Name.clone(),
+                id: item.Id.clone()
+            }
+        }).collect()
     }
 }
