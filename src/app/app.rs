@@ -1,6 +1,7 @@
 use tui::style::{Color, Style};
-use crate::app::{server, error, config, create_server};
+use crate::app::{server, error, config, create_server, player};
 use crate::api;
+use crate::util;
 
 pub struct App {
     pub active_server: i32,
@@ -127,15 +128,15 @@ impl App {
 
     }
 
-    fn active_cursor_window(&self) -> usize {
+    fn active_cursor_window(&self) -> i32 {
         if self.active_window == "servers" {
             0
         } else if self.active_window == self.active_server_name() {
             1
-        } else if self.active_window == self.active_list {
+        } else if self.active_window == self.active_list && self.active_list != "" {
             2
         } else {
-            0
+            -1
         }
     }
 
@@ -206,7 +207,8 @@ impl App {
                         },
                         1 => {
                             let item = &self.user_view[self.cursor];
-                            match api::get_items(&self.server_list[self.active_server as usize], &item.id).await {
+                            let server = &self.active_server();
+                            match api::get_items(server, &item.id).await {
                                 Ok(list) => {
                                     self.user_list = list;
                                     self.active_list = item.name.clone();
@@ -216,7 +218,31 @@ impl App {
                                 Err(error) => self.error = error
                             }
                         },
-                        2 => {},
+                        2 => {
+                            let item = &self.user_list[self.cursor];
+                            let server = &self.active_server();
+                            if item.category != "Episode" {
+                                match api::get_items(server, &item.id).await {
+                                    Ok(list) => {
+                                        let name = format!(" > {}",
+                                            util::format_long_name(item.name.clone(), 30));
+                                        self.active_list.push_str(&name);
+                                        self.active_window.push_str(&name);
+                                        self.user_list = list;
+                                        self.cursor = 0;
+                                    },
+                                    Err(error) => self.error = error
+                                };
+                            } else {
+                                let base = format!(
+                                    "{}/Items/{}/Download?api_key={}",
+                                    server.uri,
+                                    item.id,
+                                    server.user.token
+                                );
+                                player::play(base);
+                            }
+                        },
                         _ => {}
                     }
                 }
@@ -231,7 +257,14 @@ impl App {
                     self.create_server.del();
                 }
             },
-            _ => {}
+            _ => {
+                match self.active_cursor_window() {
+                    2 => {
+                        //TODO back to parent
+                    },
+                    _ => {}
+                }
+            }
         }
     }
 
@@ -253,7 +286,13 @@ impl App {
                             self.cursor = self.user_view.len() - 1;
                         }
                     },
-                    2 => {},
+                    2 => {
+                        if self.cursor > 0 {
+                            self.cursor -= 1;
+                        } else {
+                            self.cursor = self.user_list.len() - 1;
+                        }
+                    },
                     _ => {}
                 }
             }
@@ -278,7 +317,13 @@ impl App {
                             self.cursor += 1;
                         }
                     },
-                    2 => {},
+                    2 => {
+                        if self.cursor == self.user_list.len() - 1{
+                            self.cursor = 0;
+                        } else {
+                            self.cursor += 1;
+                        }
+                    },
                     _ => {}
                 }
             }
@@ -376,5 +421,9 @@ impl App {
 
     pub fn active_server_name(&self) -> String {
         self.server_list[self.active_server as usize].name.clone()
+    }
+
+    pub fn active_server(&self) -> &server::Server {
+        &self.server_list[self.active_server as usize]
     }
 }

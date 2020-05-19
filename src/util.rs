@@ -45,3 +45,12 @@ pub fn calc_mid(area: Rect, dir: char, size: u16) -> Vec<Constraint> {
         Constraint::Percentage(side as u16)
     ]
 }
+
+pub fn format_long_name(name: String, long: usize) -> String {
+    let mut name = name;
+    if name.len() > long {
+      name.truncate(long - 3);
+      name.push_str("...");
+    }
+    name
+}
