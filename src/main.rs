@@ -20,6 +20,7 @@ mod models;
 
 use event::{Events, Event, Config};
 use app::app::App;
+
 //use models::config;
 
 #[tokio::main]
@@ -59,6 +60,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 _ => {}
             }
             _ => {}
+        }
+        if app.player.ready_to_play() {
+            app.player.play(app.config.mpv_volume.clone());
         }
         if app.quit {
             //TODO safe config bevore quiting

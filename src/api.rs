@@ -11,7 +11,7 @@ fn get_header(server: &server::Server) -> Vec<String> {
         Err(err) => String::from("localhost")
     };
     let mut header = format!(
-        "MediaBrowser Client=jellydesktop, Device={}, DeviceId={}, Version=0.0.1",
+        "MediaBrowser Client=jellydesktop, Device={}, DeviceId={}, Version=0.1.0",
         host, server.uuid);
     let empty = String::from("");
     match &server.user.token {

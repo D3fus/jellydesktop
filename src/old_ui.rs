@@ -221,6 +221,7 @@ fn draw_server<B>(f: &mut Frame<B>, server: &mut ServerList, app: &mut App, area
   match list {
     Some(l) => {
       let mut rows = Vec::new();
+
       for item in l.Items {
         let color = server.clone().is_active_list(&item.Name);
         let to_play: String = {
@@ -242,6 +243,7 @@ fn draw_server<B>(f: &mut Frame<B>, server: &mut ServerList, app: &mut App, area
         }
         rows.push(Row::StyledData(vec![name, to_play].into_iter(), Style::default().fg(color)));
       }
+
       let h = chunks[0].height as usize -5;
       if server.active_list > h {
         for i in 0..server.active_list as usize - h{

@@ -67,14 +67,17 @@ pub struct ServerList {
     pub id: String,
     pub parent_id: String,
     pub category: String,
-    pub index_nummer: i32
+    pub index_nummer: i32,
+    pub played: bool,
+    pub unplayed: i32
 }
 
 impl ServerList {
     pub fn format_from_query(query: query::QueryResult) -> Vec<ServerList> {
         query.Items.iter().map(|item| {
-            let mut parent_id: String;
-            let mut index: i32;
+            let parent_id: String;
+            let index: i32;
+            let unplayed: i32;
             if item.ParentId.is_some() {
                 parent_id = item.ParentId.clone().unwrap();
             } else {
@@ -85,12 +88,19 @@ impl ServerList {
             } else {
                 index = -1;
             }
+            if item.UserData.UnplayedItemCount.is_some() {
+                unplayed = item.UserData.UnplayedItemCount.unwrap();
+            } else {
+                unplayed = -1;
+            }
             ServerList {
                 name: item.Name.clone(),
                 id: item.Id.clone(),
                 parent_id: parent_id,
                 category: item.Type.clone(),
-                index_nummer: index
+                index_nummer: index,
+                played: item.UserData.Played,
+                unplayed: unplayed
             }
         }).collect()
     }

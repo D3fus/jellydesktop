@@ -1,9 +1,10 @@
 use tui::layout::{Layout, Constraint, Alignment, Rect, Direction};
-use tui::widgets::{Block, Borders, Paragraph, Text};
-use tui::style::{Color, Style};
+use tui::widgets::{Block, Row, Gauge, Table, Borders, Paragraph, Text};
+use tui::style::{Color, Modifier, Style};
 use tui::backend::Backend;
 use tui::Frame;
 use crate::app::{app};
+use crate::util;
 
 pub fn draw_server<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
     let chunks = Layout::default()
@@ -17,10 +18,18 @@ pub fn draw_server<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
 
     let mid_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(30), Constraint::Min(0)].as_ref())
+        .constraints([Constraint::Length(25), Constraint::Min(0)].as_ref())
         .split(chunks[1]);
     draw_server_view(frame, app, mid_chunks[0]);
-    draw_server_list(frame, app, mid_chunks[1]);
+    if app.player.auto_play_timeout > 0 && !app.player.playing && !app.player.list.is_empty() {
+        let auto_play_chunks = Layout::default()
+            .constraints([Constraint::Min(0), Constraint::Length(5)].as_ref())
+            .split(mid_chunks[1]);
+        draw_server_list(frame, app, auto_play_chunks[0]);
+        draw_server_autoplay(frame, app, auto_play_chunks[1]);
+    } else {
+        draw_server_list(frame, app, mid_chunks[1]);
+    }
 }
 
 fn draw_server_view<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, area: Rect) {
@@ -38,17 +47,80 @@ fn draw_server_view<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, area: 
 }
 
 fn draw_server_list<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, area: Rect) {
-    let mut block = Block::default()
+    let block = Block::default()
         .title(&app.active_list)
         .borders(Borders::ALL)
         .border_style(app.window_color(&app.active_list));
-    //frame.render(&mut block, area);
-    let text: Vec<Text> = app.user_list.iter().enumerate().map(|(i, item)| {
-        let t = format!("{}\n", item.name);
-        Text::styled(t, app.cursor_color(i, &app.active_list))
-    }).collect();
-    let mut p = Paragraph::new(text.iter()).block(block);
-    frame.render(&mut p, area);
+
+    let mut rows = Vec::new();
+    let mut max_len = 4;
+    let width = area.width as usize;
+    for (i, item) in app.user_list.iter().enumerate() {
+        let mut name;
+        let t;
+        let mut watch = String::from("");
+        if item.category == "Movie" || item.category == "Episode" {
+            if item.category == "Episode" {
+                name = format!("{}. {}", i + 1, item.name);
+            } else {
+                name = item.name.clone();
+            }
+            t = String::from(" ▶️");
+
+            if item.played {
+                watch = String::from("✓");
+            }
+        } else {
+            name = item.name.clone();
+            t = String::from(" 📁");
+
+            if item.unplayed > 0 {
+                watch = item.unplayed.to_string();
+            } else {
+                watch = String::from("✓");
+            }
+        }
+        if name.len() > max_len && name.len() + 16 < width {
+            max_len = name.len() + 2;
+        } else if name.len() + 16 >= width {
+            name = util::format_long_name(name, width -16);
+            max_len = name.len();
+        }
+        rows.push(Row::StyledData(vec![t, name, watch].into_iter(), app.cursor_color(i, &app.active_list)));
+    }
+
+    let widths = vec![Constraint::Length(4), Constraint::Length(max_len as u16), Constraint::Min(0)];
+    let mut table = Table::new(["type", "name", "to watch"].iter(), rows.into_iter())
+        .block(block)
+        .widths(&widths)
+        .style(Style::default().fg(Color::White))
+        .column_spacing(1);
+    frame.render(&mut table, area);
+}
+
+fn draw_server_autoplay<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, area: Rect) {
+    let mut block = Block::default()
+        .title("Autoplay")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::White));
+    frame.render(&mut block, area);
+
+    let chunks = Layout::default()
+        .constraints([Constraint::Length(1), Constraint::Length(2)].as_ref())
+        .margin(2)
+        .split(area);
+
+    let label = format!("{} sec", (app.player.auto_play_timeout as f32 * 0.2).ceil());
+    let mut gauge = Gauge::default()
+        .style(
+        Style::default()
+            .fg(Color::Magenta)
+            .bg(Color::Black)
+            .modifier(Modifier::ITALIC | Modifier::BOLD),
+        )
+        .label(&label)
+        .ratio((app.player.auto_play_timeout as f64 - 100.0) * -0.01);
+    frame.render(&mut gauge, chunks[0]);
 }
 
 fn draw_server_tab<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, area: Rect) {

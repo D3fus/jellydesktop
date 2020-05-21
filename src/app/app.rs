@@ -8,6 +8,7 @@ pub struct App {
     pub server_list: Vec<server::Server>,
     pub error: error::Error,
     pub config: config::Config,
+    pub player: player::Player,
     pub create_server: create_server::CreateServer,
     pub user_view: Vec<server::ServerView>,
     pub active_list: String,
@@ -61,6 +62,7 @@ impl App {
             active_server: last_active_server,
             server_list: server_list,
             config: conf,
+            player: player::Player::new(),
             create_server: create_server::CreateServer::new(),
             user_view: user_view,
             active_list: active_list,
@@ -234,13 +236,17 @@ impl App {
                                     Err(error) => self.error = error
                                 };
                             } else {
-                                let base = format!(
-                                    "{}/Items/{}/Download?api_key={}",
-                                    server.uri,
-                                    item.id,
-                                    server.user.token
-                                );
-                                player::play(base);
+                                let (_l, r_items) = &self.user_list.split_at(self.cursor);
+                                let mut auto_play = Vec::new();
+                                auto_play = r_items.iter().map(|item| {
+                                    format!(
+                                        "{}/Items/{}/Download?api_key={}",
+                                        server.uri,
+                                        item.id,
+                                        server.user.token
+                                    )
+                                }).collect();
+                                self.player.add_list(auto_play, self.cursor);
                             }
                         },
                         _ => {}
