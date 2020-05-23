@@ -1,6 +1,6 @@
 use tui::backend::Backend;
 use tui::Frame;
-use crate::app::{app, error};
+use crate::app::{app};
 use crate::ui::error::draw_error;
 use crate::ui::server::draw_server;
 use crate::ui::create_server::draw_create_server;

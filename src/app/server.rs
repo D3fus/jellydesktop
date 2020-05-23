@@ -62,6 +62,7 @@ impl Server {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct ServerList {
     pub name: String,
     pub id: String,

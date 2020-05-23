@@ -1,4 +1,4 @@
-use tui::layout::{Layout, Constraint, Alignment, Rect, Direction};
+use tui::layout::{Layout, Constraint, Alignment, Direction};
 use tui::style::{Color, Style};
 use tui::widgets::{Block, Borders, Paragraph, Text};
 use tui::backend::Backend;

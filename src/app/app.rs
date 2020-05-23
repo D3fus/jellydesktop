@@ -17,16 +17,17 @@ pub struct App {
     pub active_window: String,
     pub cursor: usize,
     pub input_mode: bool,
+    pub auto_play_list: Vec<server::ServerList>,
     pub quit: bool
 }
 
 impl App {
     pub async fn new() -> App {
-        let mut last_active_server: i32;
-        let mut server_list: Vec<server::Server>;
+        let last_active_server: i32;
+        let server_list: Vec<server::Server>;
         let mut err: error::Error;
-        let mut conf: config::Config;
-        let mut active_page: i32;
+        let conf: config::Config;
+        let active_page: i32;
         match config::ConfigFile::load_or_create() {
             Ok(c) => {
                 last_active_server = c.last_active_server;
@@ -76,6 +77,7 @@ impl App {
             active_window: active_window,
             cursor: 0,
             input_mode: false,
+            auto_play_list: vec![],
             quit: false,
         }
     }
@@ -171,6 +173,64 @@ impl App {
         }
     }
 
+    async fn add_to_play_list(&mut self, id: &str, seen: bool) -> Option<Vec<server::ServerList>> {
+        let mut re = Vec::new();
+        match api::get_items(&self.active_server(), id).await {
+            Ok(items) => {
+                for item in items {
+                    if item.category == "Episode" || item.category == "Movie" {
+                        if !item.played || seen {
+                            self.auto_play_list.push(item);
+                        }
+                    } else {
+                        re.push(item);
+                    }
+                }
+            },
+            Err(error) => self.error = error
+        }
+        if re.is_empty(){
+            None
+        } else {
+            Some(re)
+        }
+    }
+
+    async fn play_all_ep(&mut self, seen: bool) {
+        self.auto_play_list = vec![];
+        let item = self.user_list[self.cursor].clone();
+        if item.category != "Episode" && item.category != "Movie" {
+            let mut re = Vec::new();
+            match self.add_to_play_list(&item.id, seen).await {
+                Some(r) => {
+                    re = r;
+                    while !re.is_empty() {
+                        match self.add_to_play_list(&re[0].id, seen).await {
+                            Some(r) => {
+                                for i in r {
+                                    re.push(i);
+                                }
+                            },
+                            None => {}
+                        };
+                        re.remove(0);
+                    }
+                },
+                None => {}
+            };
+        }
+        self.player.index = 0;
+        let server = self.active_server();
+        self.player.list = self.auto_play_list.iter().map(|item| {
+            format!(
+                "{}/Items/{}/Download?api_key={}",
+                server.uri,
+                item.id,
+                server.user.token
+            )
+        }).collect();
+    }
+
     pub async fn on_key(&mut self, c: char) {
         if !self.input_mode {
             match c {
@@ -186,8 +246,8 @@ impl App {
                 's' => self.player.stop_auto_play(),
                 'n' => self.player.play_next(),
                 'c' => self.switch_config(),
-    //            'p' => self.play_all_ep(false),
-    //            'P' => self.play_all_ep(true),
+                'p' => self.play_all_ep(false).await,
+                'P' => self.play_all_ep(true).await,
                 '?' => self.switch_help(),
                 '\n' => self.on_key_enter().await,
                 _ => {}
@@ -554,11 +614,19 @@ impl App {
     }
 
     pub async fn mark_as_seen(&mut self) {
-        let index = self.player.index;
-        self.user_list[index].played = true;
-        match api::set_as_seen(self.active_server(), &self.user_list[index].id.clone()).await {
-            Ok(()) => {},
-            Err(error) => self.error = error
-        };
+        if self.auto_play_list.is_empty() {
+            let index = self.player.index;
+            self.user_list[index].played = true;
+            match api::set_as_seen(self.active_server(), &self.user_list[index].id.clone()).await {
+                Ok(()) => {},
+                Err(error) => self.error = error
+            };
+        } else {
+            match api::set_as_seen(self.active_server(), &self.auto_play_list[0].id.clone()).await {
+                Ok(()) => {},
+                Err(error) => self.error = error
+            };
+            self.auto_play_list.remove(0);
+        }
     }
 }

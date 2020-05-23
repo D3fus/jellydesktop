@@ -2,13 +2,13 @@ use reqwest;
 use std::collections::HashMap;
 use hostname;
 use std::time::Duration;
-use crate::app::{error, server, app, create_server};
+use crate::app::{error, server, create_server};
 use crate::models::{user, query};
 
 fn get_header(server: &server::Server) -> Vec<String> {
     let host = match hostname::get() {
         Ok(host) => host.into_string().unwrap(),
-        Err(err) => String::from("localhost")
+        Err(_err) => String::from("localhost")
     };
     let mut header = format!(
         "MediaBrowser Client=jellydesktop, Device={}, DeviceId={}, Version=0.1.0",

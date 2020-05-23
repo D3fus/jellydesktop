@@ -34,7 +34,7 @@ pub fn draw_server<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
 
 fn draw_server_view<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, area: Rect) {
     let server_name = app.active_server_name();
-    let mut block = Block::default()
+    let block = Block::default()
         .title(&server_name)
         .borders(Borders::ALL)
         .border_style(app.window_color(&server_name));
@@ -136,10 +136,17 @@ fn draw_server_autoplay<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, ar
         .ratio((app.player.auto_play_timeout as f64 - 100.0) * -0.01);
     frame.render(&mut gauge, chunks[0]);
 
+    let name = if app.auto_play_list.is_empty(){
+        app.user_list[app.player.index].name.clone()
+    } else {
+        app.auto_play_list[0].name.clone()
+    };
+    //TODO this is bullshit
+    // fix Episode number
     let mut text = format!(
         "Next playing: {}. {}",
         (app.player.index +1).to_string(),
-        app.user_list[app.player.index].name);
+        name);
     let width = chunks[1].width as usize;
     if text.len() >= width {
         text = util::format_long_name(text, width -4);

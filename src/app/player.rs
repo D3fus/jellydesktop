@@ -1,5 +1,3 @@
-use crate::app::{server};
-use mpv;
 use std::process::Command;
 use std::process::Child;
 
