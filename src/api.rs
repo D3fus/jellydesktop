@@ -40,19 +40,22 @@ async fn get(uri: String, server: &server::Server) -> Result<reqwest::Response, 
 async fn post(
     uri: String,
     server: &server::Server,
-    data: HashMap<String, &String>) -> Result<reqwest::Response, error::Error> {
+    data: Option<HashMap<String, &String>>) -> Result<reqwest::Response, error::Error> {
 
     let header = get_header(server);
 
     let client = reqwest::Client::new();
-    match client.post(&uri)
-        .json(&data)
-        .header(&header[0], &header[1])
+    let client = client.post(&uri);
+    let client = match data {
+        Some(d) => client.json(&d),
+        None => client.header("Content-Length", "0")
+    };
+    match client.header(&header[0], &header[1])
         .timeout(Duration::from_secs(10))
         .send()
         .await {
             Ok(res) => Ok(res),
-            Err(_e) => Err(error::Error::error("Error while requesting data"))
+            Err(_e) => Err(error::Error::error("Error while sending data"))
         }
 }
 
@@ -65,7 +68,7 @@ pub async fn login(
     login.insert(String::from("pw"), &server_data.password);
 
     let uri = format!("{}{}", &server_data.uri, String::from("/Users/AuthenticateByName"));
-    let res = post(uri, &server, login).await?;
+    let res = post(uri, &server, Some(login)).await?;
     match res.json::<user::Authentication>().await {
         Ok(user) => {
             server.get_data_from_login(user);
@@ -91,4 +94,15 @@ pub async fn get_items(server: &server::Server, id: &str) -> Result<Vec<server::
         Ok(query) => Ok(server::ServerList::format_from_query(query)),
         Err(_e) => Err(error::Error::error("Error while parsing response"))
     }
+}
+
+pub async fn set_as_seen(server: &server::Server, item: &str) -> Result<(), error::Error> {
+    let uri = format!(
+        "{}/Users/{}/PlayedItems/{}",
+        server.uri,
+        server.user.id,
+        item
+    );
+    post(uri, server, None).await?;
+    Ok(())
 }

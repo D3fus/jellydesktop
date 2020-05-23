@@ -2,6 +2,8 @@ use uuid::Uuid;
 use crate::models::query;
 use std::cmp::Ordering;
 use tui::layout::{Constraint, Rect};
+use tui::widgets::{Text};
+use tui::style::{Color, Style};
 
 pub fn format_pw(pw: String) -> String{
   (0..pw.len()).map(|_| "*").collect()
@@ -53,4 +55,12 @@ pub fn format_long_name(name: String, long: usize) -> String {
       name.push_str("...");
     }
     name
+}
+
+pub fn format_bool<'a>(b: bool) -> Text<'a> {
+    if b  {
+        Text::styled("ON", Style::default().fg(Color::Green))
+    } else {
+        Text::styled("OFF", Style::default().fg(Color::Red))
+    }
 }

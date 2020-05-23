@@ -5,6 +5,7 @@ use crate::util;
 
 pub struct App {
     pub active_server: i32,
+    pub active_page: i32,
     pub server_list: Vec<server::Server>,
     pub error: error::Error,
     pub config: config::Config,
@@ -25,15 +26,18 @@ impl App {
         let mut server_list: Vec<server::Server>;
         let mut err: error::Error;
         let mut conf: config::Config;
+        let mut active_page: i32;
         match config::ConfigFile::load_or_create() {
             Ok(c) => {
                 last_active_server = c.last_active_server;
                 server_list = c.get_server_list();
                 err = error::Error::error("");
                 conf = c.get_config();
+                active_page = 0;
             },
             Err(error) => {
-                last_active_server = -2;
+                last_active_server = -99;
+                active_page = 99;
                 server_list = vec![];
                 err = error;
                 conf = config::Config::empty();
@@ -41,8 +45,8 @@ impl App {
         };
         let active_window: String;
         let user_view: Vec<server::ServerView>;
-        match last_active_server {
-            -1 => {
+        match active_page {
+            1 => {
                 active_window = String::from("Create new Server");
                 user_view = Vec::new();
             },
@@ -60,6 +64,7 @@ impl App {
         let active_list = String::from("");
         App {
             active_server: last_active_server,
+            active_page: active_page,
             server_list: server_list,
             config: conf,
             player: player::Player::new(),
@@ -126,8 +131,32 @@ impl App {
         }
     }
 
-    pub fn login() {
+    fn switch_config(&mut self) {
+        match self.active_page {
+            2 => {
+                self.cursor = 0;
+                self.active_page = 0;
+                self.active_window = self.active_server_name();
+            },
+            _ => {
+                self.cursor = 0;
+                self.active_page = 2;
+                self.active_window = String::from("config");
+            }
+        }
+    }
 
+    fn switch_help(&mut self) {
+        match self.active_page {
+            3 => {
+                self.cursor = 0;
+                self.active_page = 0;
+            },
+            _ => {
+                self.cursor = 0;
+                self.active_page = 3;
+            }
+        }
     }
 
     fn active_cursor_window(&self) -> i32 {
@@ -154,6 +183,12 @@ impl App {
                 'J' => self.on_window_down(),
                 'L' => self.on_window_right(),
                 'H' => self.on_window_left(),
+                's' => self.player.stop_auto_play(),
+                'n' => self.player.play_next(),
+                'c' => self.switch_config(),
+    //            'p' => self.play_all_ep(false),
+    //            'P' => self.play_all_ep(true),
+                '?' => self.switch_help(),
                 '\n' => self.on_key_enter().await,
                 _ => {}
             }
@@ -161,8 +196,9 @@ impl App {
             match c {
                 '\n' => self.on_key_enter().await,
                 _ => {
-                    match self.active_server {
-                        -1 => self.create_server.input(c),
+                    match self.active_page {
+                        1 => self.create_server.input(c),
+                        2 => self.config.input(c),
                         _ => {}
                     }
                 }
@@ -172,13 +208,36 @@ impl App {
 
     async fn on_key_enter(&mut self) {
         if self.has_error() {
-            match self.active_server {
-                -2 => self.quit = !self.quit,
+            match self.active_page {
+                99 => self.quit = !self.quit,
                 _ => self.error = error::Error::error("")
             }
         } else {
-            match self.active_server {
-                -1 => {
+            match self.active_page {
+                2 => {
+                    match self.cursor {
+                        0 => self.input_mode = !self.input_mode,
+                        1 => self.config.mpv_full_screen = !self.config.mpv_full_screen,
+                        2 => self.config.auto_play_episode = !self.config.auto_play_episode,
+                        3 => self.config.auto_play_movie = !self.config.auto_play_movie,
+                        4 => {
+                            match self.config.save(self.server_list.clone(), self.active_server) {
+                                Ok(()) => {},
+                                Err(error) => self.error = error
+                            };
+                            self.active_page = 0;
+                        },
+                        5 => {
+                            match self.config.load() {
+                                Ok(()) => {},
+                                Err(error) => self.error = error
+                            };
+                            self.active_page = 0;
+                        },
+                        _ => {}
+                    }
+                },
+                1 => {
                     match self.cursor {
                         0..=2 => {
                             self.input_mode = !self.input_mode;
@@ -190,100 +249,152 @@ impl App {
                         4 => {
                             if !self.server_list.is_empty() {
                                 self.cursor = 0;
-                                self.active_server = 0;
+                                self.active_page = 0;
                                 self.active_window = self.active_server_name();
                             }
                         },
                         _ => {}
                     }
                 },
-                _ => {
-                    match self.active_cursor_window() {
-                        0 => {
-                            let len = self.server_list.len();
-                            if len == self.cursor {
-                                self.active_server = -1;
-                                self.active_window = String::from("Create new Server");
-                                self.cursor = 0;
-                            }
+                0 => self.on_enter_server().await,
+                _ => {}
+            }
+        }
+    }
+
+    async fn on_enter_server(&mut self) {
+        match self.active_cursor_window() {
+            0 => {
+                let len = self.server_list.len();
+                if len == self.cursor {
+                    self.active_page = 1;
+                    self.active_window = String::from("Create new Server");
+                    self.cursor = 0;
+                }
+            },
+            1 => {
+                let item = &self.user_view[self.cursor];
+                let server = &self.active_server();
+                match api::get_items(server, &item.id).await {
+                    Ok(list) => {
+                        self.user_list = list;
+                        self.active_list = item.name.clone();
+                        self.active_window = item.name.clone();
+                        self.cursor = 0;
+                    },
+                    Err(error) => self.error = error
+                }
+            },
+            2 => {
+                let item = &self.user_list[self.cursor];
+                let server = &self.active_server();
+                if item.category != "Episode" && item.category != "Movie" {
+                    match api::get_items(server, &item.id).await {
+                        Ok(list) => {
+                            let name = format!(" > {}",
+                                util::format_long_name(item.name.clone(), 30));
+                            self.active_list.push_str(&name);
+                            self.active_window.push_str(&name);
+                            self.user_list = list;
+                            self.cursor = 0;
                         },
-                        1 => {
-                            let item = &self.user_view[self.cursor];
-                            let server = &self.active_server();
-                            match api::get_items(server, &item.id).await {
-                                Ok(list) => {
-                                    self.user_list = list;
-                                    self.active_list = item.name.clone();
-                                    self.active_window = item.name.clone();
-                                    self.cursor = 0;
-                                },
-                                Err(error) => self.error = error
-                            }
-                        },
-                        2 => {
+                        Err(error) => self.error = error
+                    };
+                } else {
+                    let auto = if item.category == "Episode" {
+                        self.config.auto_play_episode
+                    } else if item.category == "Movie" {
+                        self.config.auto_play_movie
+                    } else {
+                        false
+                    };
+
+                    let mut auto_play = Vec::new();
+                    if auto {
+                        let (_l, r_items) = &self.user_list.split_at(self.cursor);
+                        auto_play = r_items.iter().map(|item| {
+                            format!(
+                                "{}/Items/{}/Download?api_key={}",
+                                server.uri,
+                                item.id,
+                                server.user.token
+                            )
+                        }).collect();
+                    } else {
+                        auto_play = vec![
+                            format!(
+                                "{}/Items/{}/Download?api_key={}",
+                                server.uri,
+                                item.id,
+                                server.user.token
+                            )
+                        ];
+                    }
+                    self.player.add_list(auto_play, self.cursor);
+                }
+            },
+            _ => {}
+        }
+    }
+
+    pub async fn on_key_backspace(&mut self) {
+        match self.active_page {
+            2 => {
+                if self.input_mode {
+                    self.config.del();
+                }
+            },
+            1 => {
+                if self.input_mode {
+                    self.create_server.del();
+                }
+            },
+            0 => {
+                match self.active_cursor_window() {
+                    2 => {
+                        if !self.user_list.is_empty() {
                             let item = &self.user_list[self.cursor];
-                            let server = &self.active_server();
-                            if item.category != "Episode" {
-                                match api::get_items(server, &item.id).await {
+                            let server = self.active_server();
+                            if item.parent_id != "" {
+                                match api::get_items(server, &item.parent_id).await {
                                     Ok(list) => {
-                                        let name = format!(" > {}",
-                                            util::format_long_name(item.name.clone(), 30));
-                                        self.active_list.push_str(&name);
-                                        self.active_window.push_str(&name);
+                                        //let name = format!(" > {}",
+                                        //    util::format_long_name(item.name.clone(), 30));
+                                        //self.active_list.push_str(&name);
+                                        //self.active_window.push_str(&name);
                                         self.user_list = list;
                                         self.cursor = 0;
                                     },
                                     Err(error) => self.error = error
                                 };
-                            } else {
-                                let (_l, r_items) = &self.user_list.split_at(self.cursor);
-                                let mut auto_play = Vec::new();
-                                auto_play = r_items.iter().map(|item| {
-                                    format!(
-                                        "{}/Items/{}/Download?api_key={}",
-                                        server.uri,
-                                        item.id,
-                                        server.user.token
-                                    )
-                                }).collect();
-                                self.player.add_list(auto_play, self.cursor);
                             }
-                        },
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn on_key_backspace(&mut self) {
-        match self.active_server {
-            -1 => {
-                if self.input_mode {
-                    self.create_server.del();
-                }
-            },
-            _ => {
-                match self.active_cursor_window() {
-                    2 => {
+                        }
                         //TODO back to parent
                     },
                     _ => {}
                 }
-            }
+            },
+            _ => {}
         }
     }
 
     pub fn on_key_up(&mut self) {
-        match self.active_server {
-            -1 => {
+        match self.active_page {
+            2 => {
+                if self.cursor > 0 {
+                    self.cursor -= 1;
+                } else {
+                    self.cursor = 5;
+                }
+            },
+            1 => {
                 if self.cursor > 0 {
                     self.cursor -= 1;
                 } else {
                     self.cursor = 4;
                 }
             },
-            _ => {
+            0 => {
                 match self.active_cursor_window() {
                     1 => {
                         if self.cursor > 0 {
@@ -301,20 +412,28 @@ impl App {
                     },
                     _ => {}
                 }
-            }
+            },
+            _ => {}
         }
     }
 
     pub fn on_key_down(&mut self) {
-        match self.active_server {
-            -1 => {
+        match self.active_page {
+            2 => {
+                if self.cursor == 5 {
+                    self.cursor = 0;
+                } else {
+                    self.cursor += 1;
+                }
+            },
+            1 => {
                 if self.cursor == 4 {
                     self.cursor = 0;
                 } else {
                     self.cursor += 1;
                 }
             },
-            _ => {
+            0 => {
                 match self.active_cursor_window() {
                     1 => {
                         if self.cursor == self.user_view.len() -1 {
@@ -332,14 +451,15 @@ impl App {
                     },
                     _ => {}
                 }
-            }
+            },
+            _ => {}
         }
     }
 
     pub fn on_key_left(&mut self) {
-        match self.active_server {
-            -1 => {},
-            _ => {match self.active_cursor_window() {
+        match self.active_page {
+            _ => {},
+            0 => {match self.active_cursor_window() {
                 0 => {
                     if self.cursor > 0 {
                         self.cursor -= 1;
@@ -353,9 +473,9 @@ impl App {
     }
 
     pub fn on_key_right(&mut self) {
-        match self.active_server {
-            -1 => {},
-            _ => {match self.active_cursor_window() {
+        match self.active_page {
+            _ => {},
+            0 => {match self.active_cursor_window() {
                 0 => {
                     if self.cursor == self.server_list.len() {
                         self.cursor = 0;
@@ -431,5 +551,14 @@ impl App {
 
     pub fn active_server(&self) -> &server::Server {
         &self.server_list[self.active_server as usize]
+    }
+
+    pub async fn mark_as_seen(&mut self) {
+        let index = self.player.index;
+        self.user_list[index].played = true;
+        match api::set_as_seen(self.active_server(), &self.user_list[index].id.clone()).await {
+            Ok(()) => {},
+            Err(error) => self.error = error
+        };
     }
 }

@@ -27,21 +27,29 @@ impl Player {
         self.index = index;
     }
 
-    pub fn play(&mut self, volume: String) {
+    pub fn play(&mut self, volume: i32, full: bool) {
         //TODO error if not installed
+        let fullscreen = if full {
+            String::from("--fullscreen")
+        } else {
+            String::from("")
+        };
         self.player = Command::new("mpv")
             .args(&[
                 self.list[0].clone(),
                 "--really-quiet".to_string(),
-                format!("--volume={}", volume)
+                format!("--volume={}", volume.to_string()),
+                fullscreen
             ])
             .spawn()
             .unwrap();
-        //TODO add as seen
-        //let re = api::has_played(&self.uri, self.user.clone().unwrap(), &self.list[0], &self.device_id).await;
         self.list.remove(0);
         self.index += 1;
         self.auto_play_timeout = 100;
+    }
+
+    pub fn play_next(&mut self) {
+        self.auto_play_timeout = 0;
     }
 
     pub fn stop_auto_play(&mut self) {
@@ -61,6 +69,9 @@ impl Player {
                 true
             }
         } else {
+            if self.list.is_empty() && self.auto_play_timeout > 0 {
+                self.auto_play_timeout = 0;
+            }
             false
         }
     }

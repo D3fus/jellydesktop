@@ -55,14 +55,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 },
                 Key::Backspace => {
-                    app.on_key_backspace();
+                    app.on_key_backspace().await;
                 }
                 _ => {}
             }
             _ => {}
         }
         if app.player.ready_to_play() {
-            app.player.play(app.config.mpv_volume.clone());
+            app.mark_as_seen().await;
+            app.player.play(app.config.mpv_volume, app.config.mpv_full_screen);
         }
         if app.quit {
             //TODO safe config bevore quiting
