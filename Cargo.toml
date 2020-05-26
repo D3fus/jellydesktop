@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 tui = "0.8"
 termion = "1.5"
-reqwest = { version = "0.10", features = ["json"] }
+reqwest = { version = "0.10", features = ["json", "rustls-tls"], default-features = false }
 tokio = { version = "0.2", features = ["full"] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
 serde = "1.0.106"
