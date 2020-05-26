@@ -1,6 +1,6 @@
 use uuid::Uuid;
-use crate::models::query;
-use std::cmp::Ordering;
+//use crate::models::query;
+//use std::cmp::Ordering;
 use tui::layout::{Constraint, Rect};
 use tui::widgets::{Text};
 use tui::style::{Color, Style};
@@ -13,22 +13,22 @@ pub fn generate_device_id() -> String {
   Uuid::new_v4().to_string()
 }
 
-pub fn compere_items(a: &query::BaseItem, b: &query::BaseItem) -> Ordering {
-  if a.IndexNumber.is_some() {
-    if a.IndexNumber.unwrap() < b.IndexNumber.unwrap(){
-      return Ordering::Less;
-    }
-    if a.IndexNumber.unwrap() > b.IndexNumber.unwrap() {
-      return Ordering::Greater;
-    }
-  }
- return Ordering::Equal;
-}
+//pub fn compere_items(a: &query::BaseItem, b: &query::BaseItem) -> Ordering {
+//  if a.IndexNumber.is_some() {
+//    if a.IndexNumber.unwrap() < b.IndexNumber.unwrap(){
+//      return Ordering::Less;
+//    }
+//    if a.IndexNumber.unwrap() > b.IndexNumber.unwrap() {
+//      return Ordering::Greater;
+//    }
+//  }
+// return Ordering::Equal;
+//}
 
-pub fn server_uri_to_name(uri: &String) -> String {
+pub fn server_uri_to_name(uri: &str) -> String {
     let mut name = uri.split("://").collect::<Vec<&str>>()[1];
-    if name.contains(":") {
-        name = name.split(":").collect::<Vec<&str>>()[0];
+    if name.contains(':') {
+        name = name.split(':').collect::<Vec<&str>>()[0];
     }
     name.to_string()
 }

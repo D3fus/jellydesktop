@@ -130,19 +130,19 @@ impl CreateServer {
     }
 
     fn del_uri(&mut self) {
-        if self.uri.len() > 0{
+        if !self.uri.is_empty() {
             self.uri.truncate(self.uri.len() - 1);
         }
     }
 
     fn del_username(&mut self) {
-        if self.username.len() > 0 {
+        if !self.username.is_empty() {
             self.username.truncate(self.username.len() - 1);
         }
     }
 
     fn del_password(&mut self) {
-        if self.password.len() > 0 {
+        if !self.password.is_empty() {
             self.password.truncate(self.password.len() - 1);
         }
     }

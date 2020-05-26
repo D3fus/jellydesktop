@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 use serde::{Serialize, Deserialize};
-use serde;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Authentication {

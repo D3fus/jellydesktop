@@ -60,6 +60,15 @@ impl Server {
         self.user.add_token(user.AccessToken);
         self.user.add_id(user.User.Id);
     }
+
+    pub fn empty() -> Server {
+        Server {
+            uri: String::from(""),
+            name: String::from(""),
+            user: User::empty(),
+            uuid: String::from("")
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

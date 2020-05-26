@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 use serde::{Deserialize};
-use serde;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct QueryResult {

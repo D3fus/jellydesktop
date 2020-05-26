@@ -3,10 +3,9 @@ use tui::widgets::{Block, Borders, Paragraph, Text};
 use tui::style::{Color, Style};
 use tui::backend::Backend;
 use tui::Frame;
-use crate::app::{app};
 use crate::util;
 
-pub fn draw_help<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
+pub fn draw_help<B: Backend>(frame: &mut Frame<B>) {
     let block = Block::default()
         .title("help")
         .borders(Borders::ALL)

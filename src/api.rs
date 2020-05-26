@@ -13,13 +13,9 @@ fn get_header(server: &server::Server) -> Vec<String> {
     let mut header = format!(
         "MediaBrowser Client=jellydesktop, Device={}, DeviceId={}, Version=0.1.0",
         host, server.uuid);
-    let empty = String::from("");
-    match &server.user.token {
-        _ => {
+    if server.user.token != "" {
         header = format!("{}, Token={}", header, server.user.token);
-        },
-        empty => {}
-    };
+    }
     vec!["X-Emby-Authorization".to_string(), header]
 }
 

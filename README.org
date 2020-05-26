@@ -2,18 +2,11 @@
 
 * Table of Contents :TOC:
 - [[#description][Description]]
-- [[#todo][TODO]]
 - [[#install][install]]
 - [[#how-to-use][How to use]]
 
 * Description
-DONT USE IT - This code is bad
-jellydesktop is tui for jellyfin, but dont expect much.
-
-* TODO
-+ Error handeling
-+ Code cleanup
-+ Help page
+jellydesktop is a tui for jellyfin.
 
 * install
 just run ~cargo install --git https://gitlab.com/cocainefarm/jellydesktop.git~

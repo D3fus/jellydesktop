@@ -87,7 +87,7 @@ impl App {
     }
 
     pub fn cursor_color(&self, item: usize, window: &str) -> Style {
-        let mut color: Color;
+        let color;
         if self.cursor == item && self.active_window == window{
             color = Color::Blue;
         } else {
@@ -106,7 +106,7 @@ impl App {
 
     async fn add_server(&mut self) {
         if self.create_server.changed_input() {
-            if self.create_server.uri.chars().last().unwrap() == '/' {
+            if self.create_server.uri.ends_with('/') {
                 self.create_server.uri.truncate(self.create_server.uri.len() - 1);
             }
             if !self.create_server.uri.contains("http") {
@@ -200,10 +200,9 @@ impl App {
         self.auto_play_list = vec![];
         let item = self.user_list[self.cursor].clone();
         if item.category != "Episode" && item.category != "Movie" {
-            let mut re = Vec::new();
             match self.add_to_play_list(&item.id, seen).await {
                 Some(r) => {
-                    re = r;
+                    let mut re = r;
                     while !re.is_empty() {
                         match self.add_to_play_list(&re[0].id, seen).await {
                             Some(r) => {
@@ -220,15 +219,8 @@ impl App {
             };
         }
         self.player.index = 0;
-        let server = self.active_server();
-        self.player.list = self.auto_play_list.iter().map(|item| {
-            format!(
-                "{}/Items/{}/Download?api_key={}",
-                server.uri,
-                item.id,
-                server.user.token
-            )
-        }).collect();
+        self.player.server = self.active_server().clone();
+        self.player.list = self.auto_play_list.clone();
     }
 
     pub async fn on_key(&mut self, c: char) {
@@ -347,8 +339,8 @@ impl App {
             },
             2 => {
                 let item = &self.user_list[self.cursor];
-                let server = &self.active_server();
                 if item.category != "Episode" && item.category != "Movie" {
+                    let server = &self.active_server();
                     match api::get_items(server, &item.id).await {
                         Ok(list) => {
                             let name = format!(" > {}",
@@ -369,28 +361,15 @@ impl App {
                         false
                     };
 
-                    let mut auto_play = Vec::new();
+                    let auto_play;
                     if auto {
                         let (_l, r_items) = &self.user_list.split_at(self.cursor);
-                        auto_play = r_items.iter().map(|item| {
-                            format!(
-                                "{}/Items/{}/Download?api_key={}",
-                                server.uri,
-                                item.id,
-                                server.user.token
-                            )
-                        }).collect();
+                        auto_play = r_items.to_vec();
                     } else {
-                        auto_play = vec![
-                            format!(
-                                "{}/Items/{}/Download?api_key={}",
-                                server.uri,
-                                item.id,
-                                server.user.token
-                            )
-                        ];
+                        auto_play = vec![item.clone()];
                     }
-                    self.player.add_list(auto_play, self.cursor);
+                    let server = &self.server_list[self.active_server as usize];
+                    self.player.add_list(auto_play, self.cursor, server);
                 }
             },
             _ => {}
@@ -518,7 +497,6 @@ impl App {
 
     pub fn on_key_left(&mut self) {
         match self.active_page {
-            _ => {},
             0 => {match self.active_cursor_window() {
                 0 => {
                     if self.cursor > 0 {
@@ -528,13 +506,13 @@ impl App {
                     }
                 },
                 _ => {}
-            };}
+            };},
+            _ => {}
         }
     }
 
     pub fn on_key_right(&mut self) {
         match self.active_page {
-            _ => {},
             0 => {match self.active_cursor_window() {
                 0 => {
                     if self.cursor == self.server_list.len() {
@@ -544,56 +522,39 @@ impl App {
                     }
                 },
                 _ => {}
-            };}
+            };},
+            _ => {}
         }
     }
 
     pub fn on_window_up(&mut self) {
-        let server_name = self.active_server_name();
+        let server_name = &self.active_server_name();
         let active_list = &self.active_list;
-        match &self.active_window {
-            server_name => {
-                self.active_window = "servers".to_string();
-                self.cursor = 0;
-            },
-            active_list => {
-                self.active_window = "servers".to_string();
-                self.cursor = 0;
-            },
-            _ => {}
+        let name = &self.active_window;
+        if name == server_name || name == active_list {
+            self.active_window = "servers".to_string();
+            self.cursor = 0;
         }
     }
 
     pub fn on_window_down(&mut self) {
-        let servers = "servers".to_string();
-        match &self.active_window {
-            servers => {
-                self.active_window = self.active_server_name();
-                self.cursor = 0;
-            },
-            _ => {}
+        if self.active_window == "servers" {
+            self.active_window = self.active_server_name();
+            self.cursor = 0;
         }
     }
 
     pub fn on_window_left(&mut self) {
-        let list = self.active_list.clone();
-        match &self.active_window {
-            list => {
-                self.active_window = self.active_server_name();
-                self.cursor = 0;
-            },
-            _ => {}
+        if self.active_window == self.active_list {
+            self.active_window = self.active_server_name();
+            self.cursor = 0;
         }
     }
 
     pub fn on_window_right(&mut self) {
-        let view = self.active_server_name();
-        match &self.active_window {
-            view => {
-                self.active_window = self.active_list.clone();
-                self.cursor = 0;
-            },
-            _ => {}
+        if self.active_window == self.active_server_name() {
+            self.active_window = self.active_list.clone();
+            self.cursor = 0;
         }
     }
 

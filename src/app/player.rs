@@ -1,9 +1,11 @@
 use std::process::Command;
 use std::process::Child;
+use crate::app::server;
 
 pub struct Player {
     pub player: Child,
-    pub list: Vec<String>,
+    pub server: server::Server,
+    pub list: Vec<server::ServerList>,
     pub index: usize,
     pub auto_play_timeout: usize,
     pub playing: bool
@@ -11,8 +13,10 @@ pub struct Player {
 
 impl Player {
     pub fn new() -> Player {
+        let tmp_server = server::Server::empty();
         Player {
             player: Command::new("echo").spawn().unwrap(),
+            server: tmp_server,
             list: vec![],
             index: 0,
             auto_play_timeout: 0,
@@ -20,7 +24,8 @@ impl Player {
         }
     }
 
-    pub fn add_list(&mut self, list: Vec<String>, index: usize) {
+    pub fn add_list(&mut self, list: Vec<server::ServerList>, index: usize, server: &server::Server) {
+        self.server = server.clone();
         self.list = list;
         self.index = index;
     }
@@ -32,11 +37,17 @@ impl Player {
         } else {
             String::from("")
         };
+        let uri = format!("{}/Items/{}/Download?api_key={}",
+                self.server.uri,
+                self.list[0].id,
+                self.server.user.token
+            );
         self.player = Command::new("mpv")
             .args(&[
-                self.list[0].clone(),
+                uri,
                 "--really-quiet".to_string(),
                 format!("--volume={}", volume.to_string()),
+                format!("--media-title={}. {}", self.list[0].index_nummer, self.list[0].name),
                 fullscreen
             ])
             .spawn()
