@@ -34,7 +34,11 @@ impl App {
                 server_list = c.get_server_list();
                 err = error::Error::error("");
                 conf = c.get_config();
-                active_page = 0;
+                if server_list.is_empty() {
+                    active_page = 1;
+                } else {
+                    active_page = 0;
+                }
             },
             Err(error) => {
                 last_active_server = -99;

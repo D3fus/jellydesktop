@@ -53,7 +53,10 @@ impl ConfigFile {
         if !Path::new(&dir).exists() {
             create_config_file()?;
         }
-        let file = File::open(&dir).unwrap();
+        let file = match File::open(&dir) {
+            Ok(file) => file,
+            Err(e) => panic!("{:?}", e)
+        };
         let reader = BufReader::new(file);
         let j: ConfigFile = match serde_json::from_reader(reader) {
             Ok(j) => j,
