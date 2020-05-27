@@ -54,6 +54,12 @@ impl CreateServer {
         out
     }
 
+    pub fn clean(&mut self) {
+        self.uri = String::from("<https://yoururl.com>");
+        self.username = String::from("<UserName>");
+        self.password = String::from("<Password>");
+    }
+
     fn blink (&mut self, text: String) -> String {
         let mut text = text;
         if self.cursor_blink {
@@ -94,6 +100,42 @@ impl CreateServer {
                 }
                 self.cursor_blink = !self.cursor_blink;
             },
+            _ => {}
+        }
+
+    }
+
+    pub fn tab(&mut self, cursor: usize) {
+        self.cursor = cursor;
+        match cursor {
+            0 => {
+                self.cursor_blink = true;
+                if self.uri == "<https://yoururl.com>"{
+                    self.uri = String::from("");
+                }
+            },
+            1 => {
+                if self.username == "<UserName>" {
+                    self.username = String::from("");
+                }
+                if self.uri == "" {
+                    self.uri = String::from("<https://yoururl.com>");
+                }
+            },
+            2 => {
+                if self.password == "<Password>" {
+                    self.password = String::from("");
+                }
+                if self.username == "" {
+                    self.username = String::from("<UserName>");
+                }
+            },
+            3 => {
+                if self.password == "" {
+                    self.password = String::from("<Password>");
+                }
+                self.cursor_blink = false;
+            }
             _ => {}
         }
 

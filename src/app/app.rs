@@ -19,6 +19,7 @@ pub struct App {
     pub cursor: usize,
     pub input_mode: bool,
     pub auto_play_list: Vec<server::ServerList>,
+    pub loading: bool,
     pub quit: bool
 }
 
@@ -84,6 +85,7 @@ impl App {
             cursor: 0,
             input_mode: false,
             auto_play_list: vec![],
+            loading: false,
             quit: false,
         }
     }
@@ -121,9 +123,11 @@ impl App {
             let mut server = server::Server::new(self.create_server.uri.clone(), server::User::empty());
             match api::login(&self.create_server, &mut server).await {
                 Ok(()) => {
+                    self.create_server.clean();
                     self.server_list.push(server);
                     self.active_server = self.server_list.len() as i32 -1;
                     self.active_window = self.active_server_name();
+                    self.active_page = 0;
                     match config::ConfigFile::save(
                         &self.config,
                         self.server_list.clone(),
@@ -188,7 +192,7 @@ impl App {
                         if !item.played || seen {
                             self.auto_play_list.push(item);
                         }
-                    } else {
+                    } else if item.category != "Audio" {
                         re.push(item);
                     }
                 }
@@ -203,6 +207,7 @@ impl App {
     }
 
     async fn play_all_ep(&mut self, seen: bool) {
+        self.loading = true;
         self.auto_play_list = vec![];
         let item = self.user_list[self.cursor].clone();
         if item.category != "Episode" && item.category != "Movie" {
@@ -227,12 +232,13 @@ impl App {
         self.player.index = 0;
         self.player.server = self.active_server().clone();
         self.player.list = self.auto_play_list.clone();
+        self.loading = false;
     }
 
     pub async fn on_key(&mut self, c: char) {
-        if !self.input_mode {
+        if !self.input_mode && !self.loading {
             match c {
-                'q' => self.quit = !self.quit,
+                'q' => self.on_key_exit(),
                 'k' => self.on_key_up(),
                 'j' => self.on_key_down(),
                 'l' => self.on_key_right(),
@@ -250,9 +256,10 @@ impl App {
                 '\n' => self.on_key_enter().await,
                 _ => {}
             }
-        } else {
+        } else if !self.loading {
             match c {
                 '\n' => self.on_key_enter().await,
+                '\t' => self.on_key_tab(),
                 _ => {
                     match self.active_page {
                         1 => self.create_server.input(c),
@@ -262,6 +269,30 @@ impl App {
                 }
             }
         }
+    }
+
+    fn on_key_exit(&mut self) {
+        match self.active_page {
+            0 => self.quit = !self.quit,
+            _ => {
+                if self.server_list.is_empty(){
+                    self.quit = !self.quit;
+                } else {
+                    self.active_page = 0;
+                    self.cursor = 0;
+                    self.active_window = self.active_server_name();
+                }
+            }
+        }
+    }
+
+    fn on_key_tab(&mut self) {
+        if self.cursor == 4 {
+            self.cursor = 0;
+        } else {
+            self.cursor += 1;
+        }
+        self.create_server.tab(self.cursor);
     }
 
     async fn on_key_enter(&mut self) {
@@ -302,19 +333,29 @@ impl App {
                             self.create_server.enter(self.cursor);
                         },
                         3 => {
+                            self.input_mode = false;
+                            self.loading = true;
                             self.add_server().await;
+                            self.loading = false;
                         },
                         4 => {
+                            self.input_mode = false;
                             if !self.server_list.is_empty() {
                                 self.cursor = 0;
                                 self.active_page = 0;
                                 self.active_window = self.active_server_name();
+                            } else {
+                                self.quit = true;
                             }
                         },
                         _ => {}
                     }
                 },
-                0 => self.on_enter_server().await,
+                0 => {
+                    self.loading = true;
+                    self.on_enter_server().await;
+                    self.loading = false;
+                },
                 _ => {}
             }
         }
@@ -325,6 +366,7 @@ impl App {
             0 => {
                 let len = self.server_list.len();
                 if len == self.cursor {
+                    self.create_server.clean();
                     self.active_page = 1;
                     self.active_window = String::from("Create new Server");
                     self.cursor = 0;
@@ -347,7 +389,7 @@ impl App {
             },
             2 => {
                 let item = &self.user_list[self.cursor];
-                if item.category != "Episode" && item.category != "Movie" {
+                if item.category != "Episode" && item.category != "Movie" && item.category != "Audio" {
                     self.list_tree.push(item.id.clone());
                     let server = &self.active_server();
                     match api::get_items(server, &item.id).await {
@@ -361,7 +403,7 @@ impl App {
                         },
                         Err(error) => self.error = error
                     };
-                } else {
+                } else if item.category != "Audio" {
                     let auto = if item.category == "Episode" {
                         self.config.auto_play_episode
                     } else if item.category == "Movie" {

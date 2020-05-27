@@ -24,10 +24,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.hide_cursor()?;
-    let events = Events::with_config(Config {
+    let mut events = Events::with_config(Config {
       tick_rate: Duration::from_millis(200),
       ..Config::default()
     });
+    events.disable_exit_key();
 
     let mut app = App::new().await;
     loop {
