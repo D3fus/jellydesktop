@@ -88,8 +88,8 @@ impl ServerList {
             let parent_id: String;
             let index: i32;
             let unplayed: i32;
-            if item.ParentId.is_some() {
-                parent_id = item.ParentId.clone().unwrap();
+            if item.ParentBackdropItemId.is_some() {
+                parent_id = item.ParentBackdropItemId.clone().unwrap();
             } else {
                 parent_id = String::from("");
             }

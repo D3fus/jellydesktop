@@ -45,6 +45,7 @@ pub struct BaseItem {
   pub PrimaryImageAspectRatio: Option<f64>,
   #[serde(skip_deserializing)]
   pub ImageTags: Option<String>,
+  pub ParentBackdropItemId: Option<String>,
   pub BackdropImageTags: Vec<String>,
   pub ScreenshotImageTags: Option<Vec<String>>,
   pub LocationType: String,

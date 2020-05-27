@@ -14,6 +14,7 @@ pub struct App {
     pub user_view: Vec<server::ServerView>,
     pub active_list: String,
     pub user_list: Vec<server::ServerList>,
+    pub list_tree: Vec<String>,
     pub active_window: String,
     pub cursor: usize,
     pub input_mode: bool,
@@ -77,6 +78,7 @@ impl App {
             user_view: user_view,
             active_list: active_list,
             user_list: vec![],
+            list_tree: vec![],
             error: err,
             active_window: active_window,
             cursor: 0,
@@ -329,11 +331,13 @@ impl App {
                 }
             },
             1 => {
+                self.list_tree = vec![];
                 let item = &self.user_view[self.cursor];
                 let server = &self.active_server();
                 match api::get_items(server, &item.id).await {
                     Ok(list) => {
                         self.user_list = list;
+                        self.list_tree.push(item.id.clone());
                         self.active_list = item.name.clone();
                         self.active_window = item.name.clone();
                         self.cursor = 0;
@@ -344,6 +348,7 @@ impl App {
             2 => {
                 let item = &self.user_list[self.cursor];
                 if item.category != "Episode" && item.category != "Movie" {
+                    self.list_tree.push(item.id.clone());
                     let server = &self.active_server();
                     match api::get_items(server, &item.id).await {
                         Ok(list) => {
@@ -395,22 +400,29 @@ impl App {
             0 => {
                 match self.active_cursor_window() {
                     2 => {
-                        if !self.user_list.is_empty() {
-                            let item = &self.user_list[self.cursor];
+                        if !self.user_list.is_empty() && self.list_tree.len() > 1 {
+                            self.list_tree.remove(self.list_tree.len() -1);
                             let server = self.active_server();
-                            if item.parent_id != "" {
-                                match api::get_items(server, &item.parent_id).await {
-                                    Ok(list) => {
-                                        //let name = format!(" > {}",
-                                        //    util::format_long_name(item.name.clone(), 30));
-                                        //self.active_list.push_str(&name);
-                                        //self.active_window.push_str(&name);
-                                        self.user_list = list;
-                                        self.cursor = 0;
-                                    },
-                                    Err(error) => self.error = error
-                                };
-                            }
+                            match api::get_items(server, &self.list_tree.last().unwrap()).await {
+                                Ok(list) => {
+                                    let names: Vec<&str> = self.active_list.split(" > ").collect();
+                                    let mut name = String::from("");
+                                    for (i, item) in names.iter().enumerate() {
+                                        if i < names.len() - 1 {
+                                            if name.is_empty() {
+                                                name.push_str(item);
+                                            } else {
+                                                name = format!("{} > {}", name, item);
+                                            }
+                                        }
+                                    };
+                                    self.active_list = name.clone();
+                                    self.active_window = name;
+                                    self.user_list = list;
+                                    self.cursor = 0;
+                                },
+                                Err(error) => self.error = error
+                            };
                         }
                         //TODO back to parent
                     },
