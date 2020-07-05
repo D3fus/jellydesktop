@@ -64,7 +64,7 @@ fn draw_server_list<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, area: 
             let mut watch = String::from("");
             if item.category == "Movie" || item.category == "Episode" {
                 if item.category == "Episode" {
-                    name = format!("{}. {}", i + 1, item.name);
+                    name = format!("{}. {}", item.index_nummer, item.name);
                 } else {
                     name = item.name.clone();
                 }
@@ -145,7 +145,7 @@ fn draw_server_autoplay<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, ar
     // fix Episode number
     let mut text = format!(
         "Next playing: {}. {}",
-        (app.player.index +1).to_string(),
+        (app.player.list[app.player.index].index_nummer).to_string(),
         name);
     let width = chunks[1].width as usize;
     if text.len() >= width {
