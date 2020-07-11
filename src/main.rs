@@ -56,7 +56,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             _ => {}
         }
         if app.player.ready_to_play() {
-            app.mark_as_seen().await;
+            if app.player.auto_play_timeout == 0 {
+                app.mark_as_seen().await;
+            }
             app.player.play(app.config.mpv_volume, app.config.mpv_full_screen);
         }
         if app.quit {
