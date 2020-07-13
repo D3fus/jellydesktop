@@ -3,11 +3,12 @@ stages:
 - release
 
 build:
-  image: rust:1.42
+  image: rust:1.44.1
   stage: build
   script:
-    - apt-get update
-    - apt-get install openssl musl-tools -y
-    - rustup default nightly && rustup update
-    - rustup target add x86_64-unknown-linux-musl --toolchain=nightly
-    - cargo build --release --target=x86_64-unknown-linux-musl
+    - apk add --no-cache musl-dev
+    - rustup default nightly
+    - cargo build --release
+  artifacts:
+    paths:
+      - target/release/jellydesktop
