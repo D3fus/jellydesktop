@@ -132,7 +132,15 @@ impl App {
                         &self.config,
                         self.server_list.clone(),
                         self.active_server) {
-                        Ok(()) => {},
+                        Ok(()) => {
+                            match api::get_view(&self.server_list[self.active_server as usize]).await {
+                                Ok(view) => self.user_view = view,
+                                Err(error) => {
+                                    self.user_view = Vec::new();
+                                    self.error = error;
+                                }
+                            }
+                        },
                         Err(error) => self.error = error
                     };
                 },
