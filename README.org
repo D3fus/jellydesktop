@@ -2,19 +2,63 @@
 
 * Table of Contents :TOC:
 - [[#description][Description]]
-- [[#install][install]]
-- [[#how-to-use][How to use]]
+- [[#02-todo][Todo]]
+- [[#install][Install]]
+- [[#from-source][From source]]
+- [[#keybindings][Keybindings]]
+  - [[#cursor-navigation][Cursor Navigation]]
+  - [[#window-navigation][Window Navigation]]
+  - [[#overall-keybindings][Overall Keybindings]]
 
 * Description
 jellydesktop is a tui for jellyfin.
+[[./doc/1.gif]]
 
-* install
-just run ~cargo install --git https://gitlab.com/cocainefarm/jellydesktop.git~
+* [0/2] Todo
+- [ ] Music playback
+- [ ] Search
+
+* Install
+Download the newest release from the [[https://gitlab.com/cocainefarm/jellydesktop/-/releases][release]] page and copy it to
+~$HOME/.local/bin/~ .
+
+* From source
+Install [[https://rustup.rs/][rust]] nightly if not allready done.
+just run
+#+BEGIN_SRC bash
+cargo install --git https://gitlab.com/cocainefarm/jellydesktop.git
+#+END_SRC
 --or--
-clone the repo ~git clone https://gitlab.com/cocainefarm/jellydesktop.git~
-cd into it ~cd jellydesktop~
-run ~cargo intall --path ./~
+#+BEGIN_SRC bash
+git clone https://gitlab.com/cocainefarm/jellydesktop.git
+cd jellydesktop
+cargo install --path ./
+#+END_SRC
 
-* How to use
-You navigate thro jellydesktop with the vim home row.
-To move between windows, use the shift key with the vim home row.
+* Keybindings
+** Cursor Navigation
+| key | Description       |
+|-----+-------------------|
+| k   | move cursor up    |
+| j   | move cursor down  |
+| h   | move cursor left  |
+| l   | moce cursor right |
+
+** Window Navigation
+| key       | Description            |
+|-----------+------------------------|
+| shift + k | switch to upper window |
+| shift + j | switch to lower window |
+| shift + h | switch to left window  |
+| shift + l | switch to right window |
+
+** Overall Keybindings
+| key       | Description                                                    |
+|-----------+----------------------------------------------------------------|
+| enter     | load contend, start playing contend, start input mode          |
+| p         | start autoplay for all unwatched contend in highlighted folder |
+| shift + p | start autoplay for all contend in highlighted folder           |
+| ?         | show help page                                                 |
+| c         | open config page                                               |
+| s         | stop autoplay  (while autoplay cowntdown)                      |
+| n         | play next (while autoplay cowntdown)                           |
