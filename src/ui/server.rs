@@ -141,11 +141,8 @@ fn draw_server_autoplay<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, ar
     } else {
         app.auto_play_list[0].name.clone()
     };
-    //TODO this is bullshit
-    // fix Episode number
     let mut text = format!(
         "Next playing: {}. {}",
-        //app.player.index,
         (app.player.list[0].index_nummer).to_string(),
         name);
     let width = chunks[1].width as usize;
