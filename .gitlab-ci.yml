@@ -3,7 +3,7 @@ stages:
 - release
 
 build:
-  image: rust:1.44.1
+  image: rust:1.44.1-alpine
   stage: build
   script:
     - apk add --no-cache musl-dev
