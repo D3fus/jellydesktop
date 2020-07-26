@@ -1,6 +1,7 @@
 use std::process::Command;
 use std::process::Child;
 use crate::app::server;
+use mpv;
 
 pub struct Player {
     pub player: Child,
@@ -94,39 +95,44 @@ impl Player {
     }
 }
 
-//TODO use mpvlib
-//pub fn play<'a>(uri: String, playing: &Arc<Mutex<Test>>, sender: std::sync::mpsc::Sender<Test<'a>>) {
-//    thread::spawn(move ||{
-//        let mut t = Test::new();
-//        t.playing = &true;
-//        sender.send(t).unwrap();
-//        let mut mpv = mpv::MpvHandlerBuilder::new().expect("aaa");
-//        mpv.set_option("osc",true).unwrap();
-//        let mut mpv = mpv.build();
-//        match mpv {
-//            Ok(mut m) => {
-//                m.command_async(&["loadfile", &uri], 5).unwrap();
-//                m.set_property("loop","1").unwrap();
-//                m.set_property("speed",1.0).unwrap();
-//                m.wait_event(0.0);
-//                'main: loop {
-//                    while let Some(event) = m.wait_event(0.0) {
-//                        // even if you don't do anything with the events, it is still necessary to empty
-//                        // the event loop
-//                        match event {
-//                            // Shutdown will be triggered when the window is explicitely closed,
-//                            // while Idle will be triggered when the queue will end
-//                            mpv::Event::Shutdown | mpv::Event::Idle => {
-//                                break 'main;
-//                                t.playing = &false;
-//                                sender.send(t).unwrap();
-//                            }
-//                            _ => {}
-//                        };
-//                    }
-//                }
-//            },
-//            Err(e) => println!("{:?}", e)
-//        }
-//    });
-//}
+pub struct MpvPlayer {
+    pub mpv: mpv::MpvHandler,
+    pub playlist: Vec<server::ServerList>
+}
+
+impl MpvPlayer {
+    pub fn new() -> MpvPlayer {
+        let mut mpv_builder = mpv::MpvHandlerBuilder::new().unwrap();
+        mpv_builder.set_option("config", "").unwrap();
+        mpv_builder.set_option("volume", "50").unwrap();
+        let mut mpv = mpv_builder.build().unwrap();
+        MpvPlayer {
+            mpv: mpv,
+            playlist: vec![]
+        }
+    }
+
+    pub fn play_item(&mut self, item: server::ServerList) {}
+
+    pub fn play_playlist(&mut self) {}
+
+    pub fn add_to_playlist(&mut self, mut items: Vec<server::ServerList>) {
+        self.playlist.append(&mut items);
+    }
+
+    pub fn check_if_ready(&mut self) -> bool {
+        false
+    }
+
+    pub fn update_player(&mut self) {
+       
+    }
+
+    pub fn close_player(&mut self) {
+
+    }
+
+    async fn send_play_status(&self) {
+
+    }
+}

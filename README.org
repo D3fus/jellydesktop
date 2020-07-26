@@ -62,3 +62,4 @@ cargo install --path ./
 | c         | open config page                                               |
 | s         | stop autoplay  (while autoplay cowntdown)                      |
 | n         | play next (while autoplay cowntdown)                           |
+| backspace | go back                                                        |

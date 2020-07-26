@@ -4,6 +4,7 @@ use tui::Terminal;
 use tui::backend::TermionBackend;
 use std::{error::Error, time::Duration};
 use termion::{event::Key, input::MouseTerminal, screen::AlternateScreen};
+use std::sync::{Arc, Mutex};
 
 mod app;
 mod util;
@@ -30,7 +31,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
     events.disable_exit_key();
 
-    let mut app = App::new().await;
+    let mut mpv_player = app::player::MpvPlayer::new();
+    let player = Mutex::new(mpv_player);
+    let mut app = App::new(player).await;
     loop {
         terminal.draw(|mut frame| ui::draw::draw(&mut frame, &mut app))?;
         match events.next()? {
@@ -61,6 +64,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             app.player.play(app.config.mpv_volume, app.config.mpv_full_screen);
         }
+        app.mpv_player.lock().unwrap().update_player();
         if app.quit {
             //TODO safe config bevore quiting
             break

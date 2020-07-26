@@ -2,6 +2,8 @@ use tui::style::{Color, Style};
 use crate::app::{server, error, config, create_server, player};
 use crate::api;
 use crate::util;
+use mpv;
+use std::sync::{Arc, Mutex};
 
 pub struct App {
     pub active_server: i32,
@@ -20,11 +22,12 @@ pub struct App {
     pub input_mode: bool,
     pub auto_play_list: Vec<server::ServerList>,
     pub loading: bool,
-    pub quit: bool
+    pub quit: bool,
+    pub mpv_player: Mutex<player::MpvPlayer>
 }
 
 impl App {
-    pub async fn new() -> App {
+    pub async fn new(player: Mutex<player::MpvPlayer>) -> App {
         let last_active_server: i32;
         let server_list: Vec<server::Server>;
         let mut err: error::Error;
@@ -87,6 +90,7 @@ impl App {
             auto_play_list: vec![],
             loading: false,
             quit: false,
+            mpv_player: player
         }
     }
 
@@ -420,15 +424,23 @@ impl App {
                         false
                     };
 
-                    let auto_play;
-                    if auto {
-                        let (_l, r_items) = &self.user_list.split_at(self.cursor);
-                        auto_play = r_items.to_vec();
-                    } else {
-                        auto_play = vec![item.clone()];
-                    }
-                    let server = &self.server_list[self.active_server as usize];
-                    self.player.add_list(auto_play, self.cursor, server);
+                    let server = self.active_server();
+                    let uri = format!("{}/Items/{}/Download?api_key={}",
+                        server.uri.clone(),
+                        item.id,
+                        server.user.token.clone()
+                    );
+                    let mpv = self.mpv_player.lock().unwrap().mpv.command(&["loadfile", &uri]).unwrap();
+
+                    //let auto_play;
+                    //if auto {
+                    //    let (_l, r_items) = &self.user_list.split_at(self.cursor);
+                    //    auto_play = r_items.to_vec();
+                    //} else {
+                    //    auto_play = vec![item.clone()];
+                    //}
+                    //let server = &self.server_list[self.active_server as usize];
+                    //self.player.add_list(auto_play, self.cursor, server);
                 }
             },
             _ => {}
