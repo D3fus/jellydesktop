@@ -79,7 +79,8 @@ pub struct ServerList {
     pub category: String,
     pub index_nummer: i32,
     pub played: bool,
-    pub unplayed: i32
+    pub unplayed: i32,
+    pub runtime: i64
 }
 
 impl ServerList {
@@ -88,6 +89,7 @@ impl ServerList {
             let parent_id: String;
             let index: i32;
             let unplayed: i32;
+            let mut runtime = -1;
             if item.ParentBackdropItemId.is_some() {
                 parent_id = item.ParentBackdropItemId.clone().unwrap();
             } else {
@@ -103,6 +105,9 @@ impl ServerList {
             } else {
                 unplayed = -1;
             }
+            if item.RunTimeTicks.is_some() {
+                runtime = item.RunTimeTicks.unwrap() / 10 ^ 7;
+            }
             ServerList {
                 name: item.Name.clone(),
                 id: item.Id.clone(),
@@ -110,7 +115,8 @@ impl ServerList {
                 category: item.Type.clone(),
                 index_nummer: index,
                 played: item.UserData.Played,
-                unplayed: unplayed
+                unplayed: unplayed,
+                runtime: runtime
             }
         }).collect()
     }

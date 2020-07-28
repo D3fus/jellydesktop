@@ -2,8 +2,8 @@ use tui::style::{Color, Style};
 use crate::app::{server, error, config, create_server, player};
 use crate::api;
 use crate::util;
-use mpv;
 use std::sync::{Arc, Mutex};
+use libmpv;
 
 pub struct App {
     pub active_server: i32,
@@ -27,7 +27,7 @@ pub struct App {
 }
 
 impl App {
-    pub async fn new(player: Mutex<player::MpvPlayer>) -> App {
+    pub async fn new() -> App {
         let last_active_server: i32;
         let server_list: Vec<server::Server>;
         let mut err: error::Error;
@@ -72,6 +72,8 @@ impl App {
             }
         }
         let active_list = String::from("");
+        let mut mpv_player = player::MpvPlayer::new(&conf);
+        let player = Mutex::new(mpv_player);
         App {
             active_server: last_active_server,
             active_page: active_page,
@@ -241,9 +243,10 @@ impl App {
                 None => {}
             };
         }
-        self.player.index = 0;
-        self.player.server = self.active_server().clone();
-        self.player.list = self.auto_play_list.clone();
+        let mut mpv = self.mpv_player.lock().unwrap();
+        mpv.server = self.active_server().clone();
+        mpv.add_to_playlist(self.auto_play_list.clone());
+        mpv.play_playlist();
         self.loading = false;
     }
 
@@ -259,7 +262,7 @@ impl App {
                 'J' => self.on_window_down(),
                 'L' => self.on_window_right(),
                 'H' => self.on_window_left(),
-                's' => self.player.stop_auto_play(),
+                's' => self.stop_autoplay(),
                 'n' => self.player.play_next(),
                 'c' => self.switch_config(),
                 'p' => self.play_all_ep(false).await,
@@ -280,6 +283,13 @@ impl App {
                     }
                 }
             }
+        }
+    }
+
+    fn stop_autoplay(&mut self) {
+        let mut mpv = self.mpv_player.lock().unwrap();
+        if mpv.show_autoplay() {
+            mpv.stop_autoplay();
         }
     }
 
@@ -424,23 +434,19 @@ impl App {
                         false
                     };
 
-                    let server = self.active_server();
-                    let uri = format!("{}/Items/{}/Download?api_key={}",
-                        server.uri.clone(),
-                        item.id,
-                        server.user.token.clone()
-                    );
-                    let mpv = self.mpv_player.lock().unwrap().mpv.command(&["loadfile", &uri]).unwrap();
+                    let mut mpv = self.mpv_player.lock().unwrap();
 
-                    //let auto_play;
-                    //if auto {
-                    //    let (_l, r_items) = &self.user_list.split_at(self.cursor);
-                    //    auto_play = r_items.to_vec();
-                    //} else {
-                    //    auto_play = vec![item.clone()];
-                    //}
-                    //let server = &self.server_list[self.active_server as usize];
-                    //self.player.add_list(auto_play, self.cursor, server);
+                    let auto_play;
+                    if auto {
+                        let (_l, r_items) = &self.user_list.split_at(self.cursor);
+                        auto_play = r_items.to_vec();
+                    } else {
+                        auto_play = vec![item.clone()];
+                    }
+                    let server = self.server_list[self.active_server as usize].clone();
+                    mpv.server = server;
+                    mpv.add_to_playlist(auto_play);
+                    mpv.play_playlist();
                 }
             },
             _ => {}
@@ -653,19 +659,26 @@ impl App {
     }
 
     pub async fn mark_as_seen(&mut self) {
-        if self.auto_play_list.is_empty() {
-            let index = self.player.index;
-            self.user_list[index].played = true;
-            match api::set_as_seen(self.active_server(), &self.user_list[index].id.clone()).await {
-                Ok(()) => {},
-                Err(error) => self.error = error
-            };
-        } else {
-            match api::set_as_seen(self.active_server(), &self.auto_play_list[0].id.clone()).await {
-                Ok(()) => {},
-                Err(error) => self.error = error
-            };
-            self.auto_play_list.remove(0);
+        let mut mpv = self.mpv_player.lock().unwrap();
+        if !mpv.finished.is_empty() {
+            let (seen, server) = mpv.get_seen();
+            for item in seen {
+                if self.auto_play_list.is_empty() {
+                    let index = self.user_list.iter().position(|i| &i.id == item).unwrap();
+                    self.user_list[index].played = true;
+                    match api::set_as_seen(&server, &item).await {
+                        Ok(()) => {},
+                        Err(error) => self.error = error
+                    };
+                } else {
+                    match api::set_as_seen(&server, &self.auto_play_list[0].id.clone()).await {
+                        Ok(()) => {},
+                        Err(error) => self.error = error
+                    };
+                    self.auto_play_list.remove(0);
+                }
+            }
+            mpv.clear_seen();
         }
     }
 }

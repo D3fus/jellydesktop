@@ -31,9 +31,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
     events.disable_exit_key();
 
-    let mut mpv_player = app::player::MpvPlayer::new();
-    let player = Mutex::new(mpv_player);
-    let mut app = App::new(player).await;
+    let mut app = App::new().await;
     loop {
         terminal.draw(|mut frame| ui::draw::draw(&mut frame, &mut app))?;
         match events.next()? {
@@ -58,13 +56,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             _ => {}
         }
-        if app.player.ready_to_play() {
-            if app.player.auto_play_timeout == 0 {
-                app.mark_as_seen().await;
-            }
-            app.player.play(app.config.mpv_volume, app.config.mpv_full_screen);
-        }
-        app.mpv_player.lock().unwrap().update_player();
+        app.mpv_player.lock().unwrap().on_tick();
+        app.mark_as_seen().await;
         if app.quit {
             //TODO safe config bevore quiting
             break

@@ -21,7 +21,7 @@ pub fn draw_server<B: Backend>(frame: &mut Frame<B>, app: &mut app::App) {
         .constraints([Constraint::Length(25), Constraint::Min(0)].as_ref())
         .split(chunks[1]);
     draw_server_view(frame, app, mid_chunks[0]);
-    if app.player.auto_play_timeout > 0 && !app.player.playing && !app.player.list.is_empty() {
+    if app.mpv_player.lock().unwrap().show_autoplay() {
         let auto_play_chunks = Layout::default()
             .constraints([Constraint::Min(0), Constraint::Length(7)].as_ref())
             .split(mid_chunks[1]);
@@ -119,12 +119,14 @@ fn draw_server_autoplay<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, ar
         .border_style(Style::default().fg(Color::White));
     frame.render(&mut block, area);
 
+    let mpv = app.mpv_player.lock().unwrap();
+
     let chunks = Layout::default()
         .constraints([Constraint::Length(1), Constraint::Length(2)].as_ref())
         .margin(2)
         .split(area);
 
-    let label = format!("{} sec", (app.player.auto_play_timeout as f32 * 0.2).ceil());
+    let label = format!("{} sec", mpv.autoplay_timer);
     let mut gauge = Gauge::default()
         .style(
         Style::default()
@@ -133,18 +135,13 @@ fn draw_server_autoplay<B: Backend>(frame: &mut Frame<B>, app: &mut app::App, ar
             .modifier(Modifier::ITALIC | Modifier::BOLD),
         )
         .label(&label)
-        .ratio((app.player.auto_play_timeout as f64 - 100.0) * -0.01);
+        .ratio(mpv.autoplay_timer as f64 / 20.0);
     frame.render(&mut gauge, chunks[0]);
 
-    let name = if app.auto_play_list.is_empty(){
-        app.user_list[app.player.index].name.clone()
-    } else {
-        app.auto_play_list[0].name.clone()
-    };
+    let next_item = mpv.get_next_playing().unwrap();
     let mut text = format!(
         "Next playing: {}. {}",
-        (app.player.list[0].index_nummer).to_string(),
-        name);
+        (next_item.index_nummer).to_string(), next_item.name);
     let width = chunks[1].width as usize;
     if text.len() >= width {
         text = util::format_long_name(text, width -4);

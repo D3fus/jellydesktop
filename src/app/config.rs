@@ -31,6 +31,10 @@ fn default_mpv_full_screen() -> bool {
     false
 }
 
+fn defautl_mpv_quit_full_screen_autoplay() -> bool {
+    true
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigFile {
     #[serde(default = "default_server")]

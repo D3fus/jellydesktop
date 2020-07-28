@@ -51,6 +51,7 @@ pub struct BaseItem {
   pub LocationType: String,
   pub LockedFields: Option<Vec<String>>,
   pub LockData: Option<bool>,
+  pub RunTimeTicks: Option<i64>
 }
 
 
